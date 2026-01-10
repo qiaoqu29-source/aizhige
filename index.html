@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>AI OS 伴侣</title>
+    <style>
+        :root {
+            --primary-color: #007AFF;
+            --safe-bottom: env(safe-area-inset-bottom);
+            --glass: rgba(255, 255, 255, 0.7);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+            height: 100vh; overflow: hidden; background: #000;
+        }
+
+        /* === 1. 桌面层与背景 === */
+        #phone-wrapper {
+            position: relative; width: 100%; height: 100%;
+            background-image: url('https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=2070&auto=format&fit=crop'); 
+            background-size: cover; background-position: center; transition: background 0.5s ease;
+        }
+
+        /* 顶部状态栏 */
+        .status-bar {
+            height: 30px; padding: 0 20px; display: flex; justify-content: space-between; align-items: center;
+            color: white; font-size: 12px; font-weight: 600; z-index: 1000; position: relative;
+        }
+        .status-right { display: flex; gap: 5px; align-items: center; }
+        .battery { width: 22px; height: 11px; border: 1px solid white; border-radius: 3px; position: relative; }
+        .battery::after { content: ''; position: absolute; right: 4px; top: 2px; bottom: 2px; left: 2px; background: white; border-radius: 1px; width: 14px;}
+
+        /* 系统通知横幅 */
+        #notification-banner {
+            position: absolute; top: -100px; left: 10px; right: 10px; height: 70px;
+            background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(15px);
+            border-radius: 18px; padding: 12px; display: flex; align-items: center; gap: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 2000; transition: top 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+        }
+        #notification-banner.show { top: 40px; }
+        .noti-icon { width: 40px; height: 40px; border-radius: 10px; background: var(--primary-color); display: flex; align-items: center; justify-content: center; font-size: 20px; color: white; }
+        .noti-body { flex: 1; overflow: hidden; }
+        .noti-title { font-weight: 600; font-size: 14px; color: #000; }
+        .noti-text { font-size: 13px; color: #444; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* 桌面内容 */
+        .desktop-layer { display: flex; flex-direction: column; padding: 20px; height: 100%; position: relative; z-index: 10; }
+        .clock-widget { margin-top: 30px; text-align: center; color: white; text-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+        .clock-time { font-size: 72px; font-weight: 200; }
+        .clock-date { font-size: 18px; font-weight: 400; opacity: 0.9; }
+
+        .app-grid { margin-top: 50px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 25px; }
+        .app-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .app-icon {
+            width: 60px; height: 60px; border-radius: 14px; background: var(--glass); display: flex;
+            align-items: center; justify-content: center; font-size: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px); transition: transform 0.2s;
+        }
+        .app-item:active .app-icon { transform: scale(0.85); }
+        .app-name { font-size: 11px; color: white; font-weight: 500; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+        
+        .dock {
+            position: absolute; bottom: 20px; left: 15px; right: 15px; height: 90px;
+            background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(20px);
+            border-radius: 30px; display: flex; justify-content: space-around; align-items: center; padding: 0 10px;
+        }
+
+        /* === 2. 应用窗口层 === */
+        .app-window {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #F2F2F7;
+            z-index: 100; display: flex; flex-direction: column; transform: scale(0.9) translateY(100%);
+            opacity: 0; pointer-events: none; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .app-window.open { transform: scale(1) translateY(0); opacity: 1; pointer-events: auto; }
+
+        .nav-bar { height: 50px; background: white; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; border-bottom: 0.5px solid #ddd; flex-shrink: 0; }
+        .nav-title { font-weight: 600; font-size: 17px; }
+        .nav-btn { border: none; background: none; color: var(--primary-color); font-size: 16px; font-weight: 500; cursor: pointer; }
+
+        .content-scroll { flex: 1; overflow-y: auto; padding: 15px; }
+
+        /* === 3. 聊天详情 === */
+        .chat-detail-view {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #fff; z-index: 200;
+            display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.3s ease;
+        }
+        .chat-detail-view.active { transform: translateX(0); }
+        
+        /* 聊天气泡美化 */
+        .msg-container { display: flex; flex-direction: column; gap: 12px; }
+        .msg-row { display: flex; flex-direction: column; max-width: 80%; }
+        .msg-row.user { align-self: flex-end; align-items: flex-end; }
+        .msg-row.ai { align-self: flex-start; align-items: flex-start; }
+        .msg-bubble { padding: 10px 14px; border-radius: 18px; font-size: 15px; line-height: 1.4; word-wrap: break-word; }
+        .msg-row.user .msg-bubble { background: var(--primary-color); color: white; border-bottom-right-radius: 4px; box-shadow: 0 2px 5px rgba(0,122,255,0.2); }
+        .msg-row.ai .msg-bubble { background: #E9E9EB; color: #000; border-bottom-left-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+
+        .chat-footer { background: #f9f9f9; border-top: 0.5px solid #ddd; padding: 10px; padding-bottom: calc(10px + var(--safe-bottom)); }
+        .input-box { display: flex; gap: 10px; align-items: center; }
+        .chat-input { flex: 1; background: white; border: 1px solid #ddd; border-radius: 20px; padding: 8px 15px; outline: none; font-size: 16px; }
+
+        /* === 4. 设置增强 === */
+        .setting-group { background: white; border-radius: 12px; margin-bottom: 20px; overflow: hidden; border: 0.5px solid #ddd; }
+        .setting-item { padding: 12px 15px; border-bottom: 0.5px solid #eee; display: flex; flex-direction: column; }
+        .setting-item:last-child { border-bottom: none; }
+        .setting-label { font-size: 13px; color: #8E8E93; margin-bottom: 5px; }
+        .setting-input { border: none; font-size: 16px; outline: none; width: 100%; }
+        
+        .slider-row { display: flex; align-items: center; gap: 10px; }
+        input[type="range"] { flex: 1; }
+
+        /* === 5. 模态框 === */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 5000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        .modal-box { background: white; width: 85%; max-width: 320px; border-radius: 20px; padding: 20px; }
+        .modal-btns { display: flex; gap: 10px; margin-top: 15px; }
+        .action-btn { flex: 1; padding: 12px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; }
+
+        .home-bar { position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%); width: 140px; height: 5px; background: rgba(0,0,0,0.2); border-radius: 5px; z-index: 10000; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <div id="phone-wrapper">
+        <!-- 状态栏 -->
+        <div class="status-bar">
+            <div id="status-time">12:00</div>
+            <div class="status-right">
+                <span>5G</span>
+                <span>📶</span>
+                <div class="battery"></div>
+            </div>
+        </div>
+
+        <!-- 顶部通知横幅 -->
+        <div id="notification-banner" onclick="handleNotiClick()">
+            <div class="noti-icon">💬</div>
+            <div class="noti-body">
+                <div class="noti-title" id="noti-name">角色名字</div>
+                <div class="noti-text" id="noti-content">收到一条新消息...</div>
+            </div>
+        </div>
+
+        <!-- 1. 桌面层 -->
+        <div class="desktop-layer">
+            <div class="clock-widget">
+                <div class="clock-time" id="desktop-clock">12:00</div>
+                <div class="clock-date" id="desktop-date">1月1日 星期一</div>
+            </div>
+
+            <div class="app-grid">
+                <div class="app-item" onclick="openApp('app-chat')">
+                    <div class="app-icon" style="background: linear-gradient(135deg, #FF9500, #FF5E3A);">📸</div>
+                    <div class="app-name">照片</div>
+                </div>
+                <div class="app-item">
+                    <div class="app-icon" style="background: linear-gradient(135deg, #1D71F2, #5AC8FA);">📅</div>
+                    <div class="app-name">日历</div>
+                </div>
+                <div class="app-item">
+                    <div class="app-icon" style="background: linear-gradient(135deg, #FF2D55, #FF5B00);">🎵</div>
+                    <div class="app-name">音乐</div>
+                </div>
+                <div class="app-item" onclick="openApp('app-settings')">
+                    <div class="app-icon" style="background: linear-gradient(135deg, #8E8E93, #636366);">⚙️</div>
+                    <div class="app-name">设置</div>
+                </div>
+            </div>
+
+            <div class="dock">
+                <div class="app-item" onclick="openApp('app-chat')">
+                    <div class="app-icon" style="background: linear-gradient(135deg, #4CD964, #28CD41);">💬</div>
+                </div>
+                <div class="app-item">
+                    <div class="app-icon" style="background: linear-gradient(135deg, #5AC8FA, #007AFF);">🌍</div>
+                </div>
+                <div class="app-item">
+                    <div class="app-icon" style="background: linear-gradient(135deg, #FFCC00, #FF9500);">✉️</div>
+                </div>
+                <div class="app-item">
+                    <div class="app-icon" style="background: #FFF; color: #000;">📞</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 聊天应用窗口 -->
+        <div class="app-window" id="app-chat">
+            <div class="nav-bar">
+                <button class="nav-btn" onclick="closeApp('app-chat')">桌面</button>
+                <div class="nav-title">消息</div>
+                <button class="nav-btn" onclick="openCreateModal()">+</button>
+            </div>
+            <div class="content-scroll" id="chat-list-container"></div>
+        </div>
+
+        <!-- 3. 配置应用窗口 -->
+        <div class="app-window" id="app-settings">
+            <div class="nav-bar">
+                <button class="nav-btn" onclick="closeApp('app-settings')">桌面</button>
+                <div class="nav-title">系统配置</div>
+                <button class="nav-btn" onclick="saveSettings()">保存</button>
+            </div>
+            <div class="content-scroll">
+                <div class="setting-group">
+                    <div class="setting-item">
+                        <span class="setting-label">API 地址</span>
+                        <input type="text" class="setting-input" id="api-url" placeholder="https://...">
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">API Key</span>
+                        <input type="password" class="setting-input" id="api-key" placeholder="sk-...">
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">当前模型</span>
+                        <div style="display:flex;gap:10px">
+                            <input type="text" class="setting-input" id="model-name" placeholder="gpt-4o">
+                            <button onclick="fetchModels()" style="color:var(--primary-color);border:none;background:none">🔄获取</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-item">
+                        <span class="setting-label">发散度 (Temperature): <span id="temp-val">0.7</span></span>
+                        <div class="slider-row">
+                            <span>严谨</span>
+                            <input type="range" id="api-temp" min="0" max="2" step="0.1" value="0.7" oninput="document.getElementById('temp-val').innerText=this.value">
+                            <span>疯狂</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-item">
+                        <span class="setting-label">壁纸 URL</span>
+                        <input type="text" class="setting-input" id="bg-url" placeholder="图片直链...">
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-item" onclick="exportData()" style="color:var(--primary-color);cursor:pointer;font-weight:600">📤 备份数据到本地文件</div>
+                    <div class="setting-item" onclick="document.getElementById('import-file').click()" style="color:#FF3B30;cursor:pointer;font-weight:600">📥 从文件恢复数据</div>
+                    <input type="file" id="import-file" style="display:none" onchange="importData(this)">
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. 聊天对话详情 (全屏侧滑) -->
+        <div class="chat-detail-view" id="chat-detail">
+            <div class="nav-bar">
+                <button class="nav-btn" onclick="exitChat()">❮ 消息</button>
+                <div class="nav-title" id="cur-name">名字</div>
+                <button class="nav-btn" onclick="openEditModal()">⚙️</button>
+            </div>
+            <div class="content-scroll" id="msg-con">
+                <div class="msg-container" id="msg-inner"></div>
+            </div>
+            <div class="chat-footer">
+                <div class="input-box">
+                    <input type="text" class="chat-input" id="msg-input" placeholder="输入消息..." onkeypress="if(event.key==='Enter')sendMsg()">
+                    <button class="nav-btn" style="font-weight:700" onclick="sendMsg()">发送</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="home-bar"></div>
+    </div>
+
+    <!-- 模态框 -->
+    <div class="modal-overlay" id="modal-edit">
+        <div class="modal-box">
+            <h3 style="text-align:center;margin-bottom:15px">角色设定</h3>
+            <input type="text" class="setting-input" id="modal-name" placeholder="名字" style="margin-bottom:10px;border:1px solid #ddd;padding:8px">
+            <textarea id="modal-prompt" style="width:100%;height:150px;border:1px solid #ddd;padding:10px;border-radius:10px;outline:none" placeholder="人设提示词..."></textarea>
+            <div class="modal-btns">
+                <button class="action-btn" onclick="hideModal()" style="background:#eee">取消</button>
+                <button class="action-btn" onclick="saveModalHandle()" style="background:var(--primary-color);color:white">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let characters = [];
+        let curId = null;
+        let globalSettings = {};
+
+        // === 1. 初始化 ===
+        document.addEventListener('DOMContentLoaded', () => {
+            characters = JSON.parse(localStorage.getItem('characters') || '[]');
+            globalSettings = JSON.parse(localStorage.getItem('settings') || '{"apiUrl":"","apiKey":"","modelName":"gpt-4o","temp":0.7}');
+            
+            // 应用设置
+            if(globalSettings.bgUrl) document.getElementById('phone-wrapper').style.backgroundImage = `url(${globalSettings.bgUrl})`;
+            document.getElementById('api-url').value = globalSettings.apiUrl || '';
+            document.getElementById('api-key').value = globalSettings.apiKey || '';
+            document.getElementById('model-name').value = globalSettings.modelName || 'gpt-4o';
+            document.getElementById('api-temp').value = globalSettings.temp || 0.7;
+            document.getElementById('temp-val').innerText = globalSettings.temp || 0.7;
+
+            updateTime();
+            setInterval(updateTime, 1000);
+            renderCharList();
+        });
+
+        function updateTime() {
+            const now = new Date();
+            const timeStr = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+            document.getElementById('status-time').innerText = timeStr;
+            document.getElementById('desktop-clock').innerText = timeStr;
+            const days = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+            document.getElementById('desktop-date').innerText = `${now.getMonth()+1}月${now.getDate()}日 ${days[now.getDay()]}`;
+        }
+
+        // === 2. 页面导航 ===
+        function openApp(id) { document.getElementById(id).classList.add('open'); }
+        function closeApp(id) { document.getElementById(id).classList.remove('open'); }
+        
+        function openChat(id) {
+            curId = id;
+            const char = characters.find(c => c.id === id);
+            document.getElementById('cur-name').innerText = char.name;
+            document.getElementById('chat-detail').classList.add('active');
+            renderMsgs();
+        }
+        function exitChat() {
+            document.getElementById('chat-detail').classList.remove('active');
+            curId = null;
+            renderCharList();
+        }
+
+        // === 3. 数据备份与恢复 ===
+        function exportData() {
+            const data = { characters, settings: globalSettings };
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ai_os_backup_${Date.now()}.json`;
+            a.click();
+        }
+
+        function importData(input) {
+            const file = input.files[0];
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = JSON.parse(e.target.result);
+                if(data.characters) characters = data.characters;
+                if(data.settings) globalSettings = data.settings;
+                localStorage.setItem('characters', JSON.stringify(characters));
+                localStorage.setItem('settings', JSON.stringify(globalSettings));
+                alert('恢复成功！页面将刷新');
+                location.reload();
+            };
+            reader.readAsText(file);
+        }
+
+        // === 4. 聊天逻辑 ===
+        function renderCharList() {
+            const con = document.getElementById('chat-list-container');
+            con.innerHTML = characters.length ? '' : '<p style="text-align:center;margin-top:40px;color:#999">没有任何联系人</p>';
+            characters.forEach(c => {
+                const last = c.messages.length ? c.messages[c.messages.length-1].content : '新朋友';
+                const item = document.createElement('div');
+                item.className = 'char-item';
+                item.style = 'background:white;padding:15px;border-bottom:0.5px solid #eee;display:flex;align-items:center;gap:12px';
+                item.onclick = () => openChat(c.id);
+                item.innerHTML = `
+                    <div style="width:50px;height:50px;border-radius:25px;background:var(--primary-color);color:white;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700">${c.name[0]}</div>
+                    <div style="flex:1;overflow:hidden">
+                        <div style="font-weight:600;font-size:16px">${c.name}</div>
+                        <div style="font-size:14px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${last}</div>
+                    </div>
+                `;
+                con.appendChild(item);
+            });
+        }
+
+        function renderMsgs() {
+            const char = characters.find(c => c.id === curId);
+            const inner = document.getElementById('msg-inner');
+            inner.innerHTML = '';
+            char.messages.forEach(m => {
+                const row = document.createElement('div');
+                row.className = `msg-row ${m.role === 'user' ? 'user' : 'ai'}`;
+                row.innerHTML = `<div class="msg-bubble">${m.content}</div>`;
+                inner.appendChild(row);
+            });
+            const con = document.getElementById('msg-con');
+            con.scrollTop = con.scrollHeight;
+        }
+
+        async function sendMsg() {
+            const input = document.getElementById('msg-input');
+            const val = input.value.trim();
+            if(!val || !curId) return;
+
+            const char = characters.find(c => c.id === curId);
+            char.messages.push({ role: 'user', content: val });
+            input.value = '';
+            renderMsgs();
+
+            // AI 回复
+            try {
+                const res = await fetch(globalSettings.apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${globalSettings.apiKey}` },
+                    body: JSON.stringify({
+                        model: globalSettings.modelName,
+                        temperature: parseFloat(globalSettings.temp),
+                        messages: [{ role: 'system', content: char.prompt }, ...char.messages.slice(-10)]
+                    })
+                });
+                const data = await res.json();
+                const reply = data.choices[0].message.content;
+                
+                char.messages.push({ role: 'assistant', content: reply });
+                localStorage.setItem('characters', JSON.stringify(characters));
+                
+                // 如果当前不在这个人的聊天框，弹通知
+                if(curId !== char.id || document.getElementById('chat-detail').classList.contains('active') === false) {
+                    showNotification(char.name, reply, char.id);
+                } else {
+                    renderMsgs();
+                }
+            } catch(e) {
+                alert('出错了: ' + e);
+            }
+        }
+
+        // === 5. 通知系统 ===
+        let activeNotiId = null;
+        function showNotification(name, content, id) {
+            activeNotiId = id;
+            document.getElementById('noti-name').innerText = name;
+            document.getElementById('noti-content').innerText = content;
+            document.getElementById('notification-banner').classList.add('show');
+            setTimeout(() => {
+                document.getElementById('notification-banner').classList.remove('show');
+            }, 5000);
+        }
+
+        function handleNotiClick() {
+            if(activeNotiId) {
+                openChat(activeNotiId);
+                document.getElementById('notification-banner').classList.remove('show');
+            }
+        }
+
+        // === 6. 模态框与设置 ===
+        let modalActionId = null;
+        function openCreateModal() { modalActionId = null; document.getElementById('modal-name').value=''; document.getElementById('modal-prompt').value=''; document.getElementById('modal-edit').style.display='flex'; }
+        function openEditModal() { modalActionId = curId; const char = characters.find(c=>c.id===curId); document.getElementById('modal-name').value=char.name; document.getElementById('modal-prompt').value=char.prompt; document.getElementById('modal-edit').style.display='flex'; }
+        function hideModal() { document.getElementById('modal-edit').style.display='none'; }
+
+        function saveModalHandle() {
+            const n = document.getElementById('modal-name').value.trim();
+            const p = document.getElementById('modal-prompt').value.trim();
+            if(!n) return;
+            if(modalActionId) {
+                const char = characters.find(c=>c.id===modalActionId);
+                char.name = n; char.prompt = p;
+                document.getElementById('cur-name').innerText = n;
+            } else {
+                characters.unshift({ id: Date.now(), name: n, prompt: p, messages: [] });
+            }
+            localStorage.setItem('characters', JSON.stringify(characters));
+            renderCharList();
+            hideModal();
+        }
+
+        function saveSettings() {
+            globalSettings.apiUrl = document.getElementById('api-url').value.trim();
+            globalSettings.apiKey = document.getElementById('api-key').value.trim();
+            globalSettings.modelName = document.getElementById('model-name').value.trim();
+            globalSettings.temp = document.getElementById('api-temp').value;
+            globalSettings.bgUrl = document.getElementById('bg-url').value.trim();
+            localStorage.setItem('settings', JSON.stringify(globalSettings));
+            if(globalSettings.bgUrl) document.getElementById('phone-wrapper').style.backgroundImage = `url(${globalSettings.bgUrl})`;
+            alert('设置生效');
+            closeApp('app-settings');
+        }
+
+        async function fetchModels() {
+             const key = document.getElementById('api-key').value.trim();
+             const url = document.getElementById('api-url').value.trim().replace('/chat/completions', '') + '/models';
+             try {
+                const res = await fetch(url, { headers: { 'Authorization': `Bearer ${key}` } });
+                const data = await res.json();
+                alert('可用模型: ' + data.data.map(m=>m.id).join(', '));
+             } catch(e) { alert('获取失败') }
+        }
+    </script>
+</body>
+</html>
