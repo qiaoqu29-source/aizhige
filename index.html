@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>AI OS Pro - Gemini v3</title>
+    <style>
+        :root {
+            --primary-color: #007AFF;
+            --safe-top: env(safe-area-inset-top);
+            --safe-bottom: env(safe-area-inset-bottom);
+            --im-black: #000000;
+            --im-gray-bg: #111111;
+            --im-gray-nav: #1a1a1a;
+            --im-bubble: #2c2c2c;
+            --im-text: #ffffff;
+            --im-time: #666666;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+            height: 100dvh; width: 100vw; overflow: hidden; background: #000;
+        }
+
+        #phone-wrapper {
+            position: relative; width: 100%; height: 100%;
+            background-color: var(--im-black);
+            background-image: url('https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=2070&auto=format&fit=crop'); 
+            background-size: cover; background-position: center;
+        }
+
+        .status-bar {
+            height: calc(24px + var(--safe-top)); padding: var(--safe-top) 20px 0;
+            display: flex; justify-content: space-between; align-items: center;
+            color: white; font-size: 13px; font-weight: 600; z-index: 1000;
+        }
+
+        /* 桌面内容 */
+        .desktop-layer { display: flex; flex-direction: column; padding: 20px; height: 100%; position: relative; }
+        .clock-widget { margin-top: 15px; text-align: center; color: white; }
+        .clock-time { font-size: 76px; font-weight: 200; }
+        .app-grid { margin-top: 30px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+        .app-item { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; color: white; font-size: 11px; }
+        .app-icon { width: 62px; height: 62px; border-radius: 15px; background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; font-size: 32px; }
+        .dock { position: absolute; bottom: calc(25px + var(--safe-bottom)); left: 15px; right: 15px; height: 95px; background: rgba(255, 255, 255, 0.3); backdrop-filter: blur(25px); border-radius: 35px; display: flex; justify-content: space-around; align-items: center; }
+
+        /* 通用应用窗口 */
+        .app-window { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #F2F2F7; z-index: 100; display: flex; flex-direction: column; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .app-window.open { transform: translateY(0); }
+        .nav-bar { height: calc(54px + var(--safe-top)); padding-top: var(--safe-top); background: var(--im-gray-nav); color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 0.5px solid #222; flex-shrink: 0; }
+        .nav-btn { border: none; background: none; color: #fff; font-size: 16px; cursor: pointer; }
+
+        /* === 聊天定制 UI === */
+        .chat-view { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--im-black); z-index: 200; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.3s ease; }
+        .chat-view.active { transform: translateX(0); }
+        .im-scroll { flex: 1; overflow-y: auto; padding: 15px; }
+        .im-inject { display: flex; flex-direction: column; gap: 20px; }
+        .im-time { align-self: center; font-size: 12px; color: var(--im-time); margin: 5px 0; }
+        .im-row { display: flex; width: 100%; gap: 10px; }
+        .im-row.user { flex-direction: row-reverse; }
+        .im-avatar { width: 42px; height: 42px; border-radius: 6px; flex-shrink: 0; background: #444; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; overflow: hidden; }
+        .im-bubble { 
+            max-width: calc(100% - 130px); padding: 10px 14px; border-radius: 8px; font-size: 16px; 
+            line-height: 1.5; color: var(--im-text); background: var(--im-bubble); 
+            position: relative; word-wrap: break-word; overflow-wrap: anywhere; 
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2); cursor: pointer;
+        }
+        .im-row.user .im-bubble { border-top-right-radius: 2px; }
+        .im-row.ai .im-bubble { border-top-left-radius: 2px; }
+
+        /* 仿截图输入框 */
+        .im-footer { background: #161616; padding-bottom: var(--safe-bottom); border-top: 0.5px solid #222; flex-shrink: 0; }
+        .im-input-bar { display: flex; align-items: center; padding: 10px 12px; gap: 12px; }
+        .im-btn { width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid #8e8e93; display: flex; align-items: center; justify-content: center; color: #8e8e93; font-size: 20px; }
+        .im-input-wrap { flex: 1; background: #262626; border-radius: 8px; display: flex; align-items: center; padding: 0 10px; min-height: 40px; }
+        .im-input { flex: 1; background: transparent; border: none; outline: none; color: #fff; font-size: 16px; padding: 8px 0; }
+
+        /* 设置相关 */
+        .card { background: white; border-radius: 14px; margin-bottom: 20px; overflow: hidden; border: 0.5px solid #ddd; }
+        .card-row { padding: 12px 16px; border-bottom: 0.5px solid #f0f0f0; display: flex; flex-direction: column; }
+        .c-label { font-size: 12px; color: #8e8e93; margin-bottom: 4px; }
+        .c-input { border: none; font-size: 16px; outline: none; background: transparent; padding: 4px 0; width: 100%; font-family: inherit; }
+        
+        /* 模态框 */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 5000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        .modal-box { background: #1c1c1e; color: white; width: 88%; max-width: 340px; border-radius: 22px; padding: 22px; }
+        .modal-btn { flex: 1; padding: 12px; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; }
+
+        .noti-banner {
+            position: absolute; top: -100px; left: 10px; right: 10px; height: 75px;
+            background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(20px);
+            border-radius: 20px; padding: 12px; display: flex; align-items: center; gap: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 2000; transition: top 0.4s ease;
+        }
+        .noti-banner.show { top: calc(10px + var(--safe-top)); }
+    </style>
+</head>
+<body>
+
+<div id="phone-wrapper">
+    <!-- 状态栏 -->
+    <div class="status-bar">
+        <div id="st-time">12:00</div>
+        <div style="display:flex; gap:6px;"><span>📶</span><span>5G</span></div>
+    </div>
+
+    <!-- 通知 -->
+    <div id="noti-banner" class="noti-banner" onclick="jumpToChat()">
+        <div style="width:44px;height:44px;background:#4CD964;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;">💬</div>
+        <div style="flex:1;overflow:hidden">
+            <div id="noti-n" style="font-weight:700;font-size:14px;color:#000">角色名</div>
+            <div id="noti-t" style="font-size:13px;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">消息内容...</div>
+        </div>
+    </div>
+
+    <!-- 1. 桌面 -->
+    <div class="desktop-layer">
+        <div class="clock-widget"><div class="clock-time" id="dk-time">12:00</div><div id="dk-date" style="font-size:18px">1月1日</div></div>
+        <div class="app-grid">
+            <div class="app-item" onclick="openApp('win-chat')"><div class="app-icon" style="background: linear-gradient(135deg, #4CD964, #28CD41);">💬</div><div>消息</div></div>
+            <div class="app-item" onclick="openApp('win-sets')"><div class="app-icon" style="background: linear-gradient(135deg, #8E8E93, #636366);">⚙️</div><div>设置</div></div>
+        </div>
+        <div class="dock">
+            <div class="app-icon" style="background: linear-gradient(135deg, #4CD964, #28CD41);" onclick="openApp('win-chat')">💬</div>
+            <div class="app-icon" style="background: #FFF; font-size:28px;">📞</div>
+            <div class="app-icon" style="background: #5AC8FA;">🌍</div>
+            <div class="app-icon" style="background: #FFCC00;">✉️</div>
+        </div>
+    </div>
+
+    <!-- 窗口：设置 -->
+    <div class="app-window" id="win-sets">
+        <div class="nav-bar"><button class="nav-btn" onclick="closeApp('win-sets')">取消</button><div class="nav-title">配置</div><button class="nav-btn" onclick="saveGlobalSets()">保存</button></div>
+        <div class="scroll-area">
+            <div class="card">
+                <div class="card-row"><span class="c-label">API 地址</span><input type="text" class="c-input" id="set-url"></div>
+                <div class="card-row"><span class="c-label">API Key</span><input type="password" class="c-input" id="set-key"></div>
+                <div class="card-row">
+                    <span class="c-label">模型列表</span>
+                    <div style="display:flex;gap:10px" id="model-select-wrapper">
+                        <input type="text" class="c-input" id="set-model" style="flex:1">
+                        <button onclick="fetchModelsList()" style="color:var(--primary-color);border:none;background:none;font-weight:700">🔄拉取</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-row"><span class="c-label">气泡发散度 (Temp): <b id="temp-v">0.7</b></span><input type="range" id="set-temp" min="0" max="2" step="0.1" value="0.7" oninput="document.getElementById('temp-v').innerText=this.value"></div>
+                <div class="card-row"><span class="c-label">壁纸 URL</span><input type="text" class="c-input" id="set-bg"></div>
+            </div>
+            <div style="font-size:12px;color:#888;padding:10px">提示：开启主动消息功能需要网页在后台持续运行。建议添加到主屏幕使用。</div>
+        </div>
+    </div>
+
+    <!-- 窗口：会话列表 -->
+    <div class="app-window" id="win-chat">
+        <div class="nav-bar"><button class="nav-btn" onclick="closeApp('win-chat')">桌面</button><div class="nav-title">消息</div><button class="nav-btn" onclick="openModal('create')">+</button></div>
+        <div class="scroll-area" id="list-con" style="background:#fff"></div>
+    </div>
+
+    <!-- 聊天详情页 -->
+    <div class="chat-view" id="win-room">
+        <div class="nav-bar">
+            <button class="nav-btn" onclick="exitRoom()">❮ 2953</button>
+            <div id="room-n" class="nav-title">名字</div>
+            <button class="nav-btn" onclick="openModal('edit')">•••</button>
+        </div>
+        <div class="im-scroll" id="im-scroll">
+            <div class="im-inject" id="im-inject"></div>
+        </div>
+        <div class="im-footer">
+            <div class="im-input-bar">
+                <div class="im-btn" style="font-size:16px;">🔊</div>
+                <div class="im-input-wrap">
+                    <input type="text" id="chat-inp" class="im-input" placeholder="" onkeypress="if(event.key==='Enter')handleSend()">
+                    <span style="color:#8e8e93;margin-left:8px">🎤</span>
+                </div>
+                <div class="im-btn" onclick="alert('😊')">😊</div>
+                <div class="im-btn" onclick="toggleT()">+</div>
+            </div>
+            <div class="tools-panel" id="t-panel">
+                <div style="text-align:center" onclick="up('img')"><div class="tool-bg">🖼️</div><span style="color:#888;font-size:11px">相册</span></div>
+                <div style="text-align:center" onclick="up('file')"><div class="tool-bg">📄</div><span style="color:#888;font-size:11px">文件</span></div>
+                <div style="text-align:center" onclick="clearH()"><div class="tool-bg">🗑️</div><span style="color:#888;font-size:11px">清空</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框：角色与主动消息设置 -->
+    <div class="modal-overlay" id="mo-overlay">
+        <div class="modal-box">
+            <h3 style="text-align:center;margin-bottom:15px">角色信息</h3>
+            <input type="text" id="mo-n" class="c-input" style="background:#2c2c2e;color:white;border-radius:10px;padding:12px;margin-bottom:12px" placeholder="名字">
+            <textarea id="mo-p" style="width:100%;height:140px;background:#2c2c2e;color:white;border:none;border-radius:10px;padding:12px;outline:none;font-family:inherit;" placeholder="性格人设..."></textarea>
+            
+            <div style="border-top:0.5px solid #333;margin-top:10px;padding-top:10px">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                    <span style="font-size:14px">主动发消息 (后台间隔)</span>
+                    <input type="checkbox" id="mo-active">
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+                    <span style="font-size:12px;color:#888">间隔(分钟):</span>
+                    <input type="number" id="mo-interval" style="width:60px;background:#2c2c2e;color:white;border:none;padding:5px;border-radius:5px" value="60">
+                </div>
+            </div>
+
+            <div style="display:flex;gap:12px;margin-top:20px">
+                <button onclick="hideModal()" class="modal-btn" style="background:#3a3a3c;color:white">取消</button>
+                <button onclick="commitModal()" class="modal-btn" style="background:var(--primary-color);color:white">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 消息编辑模态框 -->
+    <div class="modal-overlay" id="edit-msg-overlay">
+        <div class="modal-box">
+            <h3 style="text-align:center;margin-bottom:10px">编辑消息</h3>
+            <textarea id="edit-msg-val" style="width:100%;height:150px;background:#2c2c2e;color:white;border:none;border-radius:10px;padding:12px;outline:none;font-family:inherit;"></textarea>
+            <div style="display:flex;gap:12px;margin-top:15px">
+                <button onclick="document.getElementById('edit-msg-overlay').style.display='none'" class="modal-btn" style="background:#3a3a3c;color:white">取消</button>
+                <button id="save-msg-btn" class="modal-btn" style="background:var(--primary-color);color:white">修正</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="up-i" accept="image/*" style="display:none" onchange="dImg(this)">
+    <input type="file" id="up-f" accept=".txt,.md" style="display:none" onchange="dFile(this)">
+    <canvas id="comp-c" style="display:none"></canvas>
+</div>
+
+<script>
+    let chars = [], sets = {}, curId = null, mMode = 'create', swReg = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        chars = JSON.parse(localStorage.getItem('characters') || '[]');
+        sets = JSON.parse(localStorage.getItem('settings') || '{"apiUrl":"","apiKey":"","modelName":"gpt-4o","temp":0.7}');
+        
+        document.getElementById('set-url').value = sets.apiUrl || '';
+        document.getElementById('set-key').value = sets.apiKey || '';
+        document.getElementById('set-model').value = sets.modelName || 'gpt-4o';
+        document.getElementById('set-temp').value = sets.temp || 0.7;
+        if(sets.bgUrl) document.getElementById('phone-wrapper').style.backgroundImage = `url(${sets.bgUrl})`;
+
+        updateClock(); setInterval(updateClock, 1000);
+        renderList();
+        initSW();
+        // 启动主动消息循环
+        setInterval(checkActiveInteract, 60000); // 每一分钟检查一次
+    });
+
+    async function initSW() {
+        if ('serviceWorker' in navigator) swReg = await navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    }
+
+    // --- 🚀 新增：主动发消息逻辑 ---
+    async function checkActiveInteract() {
+        const now = Date.now();
+        chars.forEach(async (c) => {
+            if (c.activeInteract && c.activeInterval) {
+                const lastTime = c.lastMsgTime || c.id;
+                const intervalMs = c.activeInterval * 60 * 1000;
+                
+                if (now - lastTime > intervalMs) {
+                    // 时间到了，API 召唤！
+                    c.lastMsgTime = now; // 无论成败先重置，防止请求爆炸
+                    const reply = await getAIReply(c, "（系统提示：用户已经很久没理你了，请根据你的人设主动发一条消息引起用户的注意，字数控制在30字以内）");
+                    if (reply) {
+                        c.messages.push({ role: 'assistant', content: reply });
+                        localStorage.setItem('characters', JSON.stringify(chars));
+                        if(curId === c.id) renderMsgs();
+                        triggerPush(c.name, reply, c.id);
+                    }
+                }
+            }
+        });
+    }
+
+    async function getAIReply(char, customPrompt = null) {
+        try {
+            const hist = customPrompt 
+                ? [...char.messages.slice(-5), { role:'system', content: customPrompt }]
+                : [{role:'system', content:char.prompt}, ...char.messages.slice(-10)];
+            
+            const res = await fetch(sets.apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${sets.apiKey}` },
+                body: JSON.stringify({ model: sets.modelName, temperature: parseFloat(sets.temp), messages: hist })
+            });
+            const d = await res.json();
+            return d.choices[0].message.content;
+        } catch(e) { return null; }
+    }
+
+    // --- 🚀 修正：拉取模型列表 ---
+    async function fetchModelsList() {
+        const u = document.getElementById('set-url').value.replace('/chat/completions','').replace(/\/+$/,'') + '/models';
+        const k = document.getElementById('set-key').value;
+        try {
+            const r = await fetch(u, { headers: { 'Authorization': `Bearer ${k}` } });
+            const d = await r.json();
+            const models = d.data || [];
+            if(models.length > 0) {
+                const cur = document.getElementById('set-model').value;
+                document.getElementById('model-select-wrapper').innerHTML = `
+                    <select id="set-model" class="c-input" style="flex:1;background:#fff;border:1px solid #ddd;border-radius:8px">
+                        ${models.map(m => `<option value="${m.id}" ${m.id===cur?'selected':''}>${m.id}</option>`).join('')}
+                    </select>
+                    <button onclick="location.reload()" style="color:var(--primary-color);border:none;background:none;font-weight:700">确定</button>
+                `;
+            }
+        } catch(e) { alert('拉取失败'); }
+    }
+
+    // --- 🚀 新增：编辑消息逻辑 ---
+    function openEditMsg(charId, msgIndex) {
+        const c = chars.find(x => x.id === charId);
+        const msg = c.messages[msgIndex];
+        const overlay = document.getElementById('edit-msg-overlay');
+        const area = document.getElementById('edit-msg-val');
+        area.value = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
+        overlay.style.display = 'flex';
+        
+        document.getElementById('save-msg-btn').onclick = () => {
+            msg.content = area.value;
+            localStorage.setItem('characters', JSON.stringify(chars));
+            renderMsgs();
+            overlay.style.display = 'none';
+        };
+    }
+
+    // --- 常规逻辑 ---
+    function updateClock() {
+        const n = new Date();
+        const t = n.getHours().toString().padStart(2,'0') + ':' + n.getMinutes().toString().padStart(2,'0');
+        document.getElementById('st-time').innerText = t; document.getElementById('dk-time').innerText = t;
+        document.getElementById('dk-date').innerText = (n.getMonth()+1)+'月'+n.getDate()+'日';
+    }
+
+    function openApp(id) { document.getElementById(id).classList.add('open'); }
+    function closeApp(id) { document.getElementById(id).classList.remove('open'); }
+    function openRoom(id) { curId = id; const c = chars.find(x => x.id === id); document.getElementById('room-n').innerText = c.name; document.getElementById('win-room').classList.add('active'); renderMsgs(); }
+    function exitRoom() { document.getElementById('win-room').classList.remove('active'); curId = null; renderList(); }
+
+    function renderList() {
+        const con = document.getElementById('list-con'); con.innerHTML = '';
+        chars.forEach(c => {
+            const item = document.createElement('div');
+            item.className = 'char-item';
+            item.onclick = () => openRoom(c.id);
+            item.innerHTML = `<div class="im-avatar" style="border-radius:24px;background:var(--primary-color)">${c.name[0]}</div><div style="font-weight:700;margin-left:12px;color:#000">${c.name}</div>`;
+            con.appendChild(item);
+        });
+    }
+
+    function renderMsgs() {
+        const c = chars.find(x => x.id === curId);
+        const inj = document.getElementById('im-inject'); inj.innerHTML = '';
+        inj.innerHTML += `<div class="im-time">对方正在输入中...</div>`;
+        
+        c.messages.forEach((m, idx) => {
+            const row = document.createElement('div');
+            row.className = `im-row ${m.role === 'user' ? 'user' : 'ai'}`;
+            const bubble = document.createElement('div');
+            bubble.className = 'im-bubble';
+            bubble.innerHTML = (typeof m.content === 'string') ? m.content.replace(/\n/g,"<br>") : '[多媒体]';
+            // 绑定编辑功能
+            bubble.onclick = () => openEditMsg(c.id, idx);
+            
+            const avatar = `<div class="im-avatar" style="background:${m.role==='user'?'#007AFF':'#444'}">${m.role==='user'?'我':c.name[0]}</div>`;
+            row.innerHTML = m.role === 'user' ? avatar + bubble.outerHTML : avatar + bubble.outerHTML;
+            // 修正顺序
+            if(m.role === 'user') row.innerHTML = bubble.outerHTML + avatar;
+            else row.innerHTML = avatar + bubble.outerHTML;
+            
+            // 修正点击事件 (outerHTML会丢失事件)
+            const realBubble = row.querySelector('.im-bubble');
+            realBubble.onclick = () => openEditMsg(c.id, idx);
+
+            inj.appendChild(row);
+        });
+        document.getElementById('im-scroll').scrollTop = 999999;
+    }
+
+    async function handleSend() {
+        const inp = document.getElementById('chat-inp');
+        const v = inp.value.trim(); if(!v || !curId) return;
+        const c = chars.find(x => x.id === curId);
+        c.messages.push({ role: 'user', content: v });
+        c.lastMsgTime = Date.now(); // 更新最后发言时间
+        inp.value = ''; renderMsgs();
+
+        const reply = await getAIReply(c);
+        if(reply){
+            c.messages.push({ role: 'assistant', content: reply });
+            localStorage.setItem('characters', JSON.stringify(chars));
+            renderMsgs();
+        }
+    }
+
+    function triggerPush(n, b, id) {
+        if (Notification.permission === "granted") {
+            const opt = { body: b, icon: 'https://img.icons8.com/color/96/chat--v1.png', tag: 'active-msg' };
+            if (swReg) swReg.showNotification(n, opt); else new Notification(n, opt);
+        }
+    }
+
+    function jumpToChat() { document.getElementById('noti-banner').classList.remove('show'); openApp('win-chat'); if(curId) openRoom(curId); }
+
+    function saveGlobalSets() {
+        sets.apiUrl = document.getElementById('set-url').value;
+        sets.apiKey = document.getElementById('set-key').value;
+        sets.modelName = document.getElementById('set-model').value;
+        sets.temp = document.getElementById('set-temp').value;
+        sets.bgUrl = document.getElementById('set-bg').value;
+        localStorage.setItem('settings', JSON.stringify(sets));
+        location.reload();
+    }
+
+    function openModal(type) {
+        mMode = type;
+        if(type==='edit') {
+            const c=chars.find(x=>x.id===curId);
+            document.getElementById('mo-n').value=c.name;
+            document.getElementById('mo-p').value=c.prompt;
+            document.getElementById('mo-active').checked=c.activeInteract;
+            document.getElementById('mo-interval').value=c.activeInterval || 60;
+        } else {
+            document.getElementById('mo-n').value=''; document.getElementById('mo-p').value='';
+            document.getElementById('mo-active').checked=false;
+        }
+        document.getElementById('mo-overlay').style.display='flex';
+    }
+    function hideModal() { document.getElementById('mo-overlay').style.display='none'; }
+    function commitModal() {
+        const n=document.getElementById('mo-n').value.trim(), p=document.getElementById('mo-p').value.trim();
+        const active = document.getElementById('mo-active').checked;
+        const interval = parseInt(document.getElementById('mo-interval').value);
+        if(!n) return;
+        if(mMode==='create') chars.unshift({ id:Date.now(), name:n, prompt:p, messages:[], activeInteract:active, activeInterval:interval });
+        else { const c=chars.find(x=>x.id===curId); c.name=n; c.prompt=p; c.activeInteract=active; c.activeInterval=interval; document.getElementById('room-n').innerText=n; }
+        localStorage.setItem('characters', JSON.stringify(chars)); renderList(); hideModal();
+    }
+
+    function toggleT() { document.getElementById('t-panel').classList.toggle('show'); }
+    function clearH() { if(confirm('清空？')){ const c=chars.find(x=>x.id===curId); c.messages=[]; localStorage.setItem('characters', JSON.stringify(chars)); renderMsgs(); toggleT(); } }
+    function exportData() { const b = new Blob([JSON.stringify({chars, sets})], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'ai_os.json'; a.click(); }
+</script>
+</body>
+</html>
