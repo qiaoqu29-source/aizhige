@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>AI OS Designer Pro</title>
+    <style>
+        :root {
+            --primary-color: #07C160; /* 采用微信绿作为主点缀 */
+            --ios-blue: #007AFF;
+            --safe-top: env(safe-area-inset-top);
+            --safe-bottom: env(safe-area-inset-bottom);
+            --bg-black: #000000;
+            --nav-bg: rgba(25, 25, 25, 0.8);
+            --card-bg: #1c1c1e;
+            --im-bubble-ai: #2c2c2c;
+            --im-bubble-user: #303030;
+            --text-main: #ffffff;
+            --text-sec: #8e8e93;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+            height: 100dvh; width: 100vw; overflow: hidden; background: #000; color: var(--text-main);
+        }
+
+        /* === 桌面背景 === */
+        #phone-wrapper {
+            position: relative; width: 100%; height: 100%;
+            background-image: url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1964&auto=format&fit=crop'); 
+            background-size: cover; background-position: center; transition: background 0.5s ease;
+        }
+
+        /* 状态栏 */
+        .status-bar {
+            height: calc(24px + var(--safe-top)); padding: var(--safe-top) 20px 0;
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 13px; font-weight: 600; z-index: 1000; position: relative;
+        }
+
+        /* === 极简桌面逻辑 === */
+        .desktop-layer { display: flex; flex-direction: column; padding: 20px; height: 100%; position: relative; z-index: 10; }
+        .clock-widget { margin-top: 20px; text-align: center; text-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .clock-time { font-size: 80px; font-weight: 200; letter-spacing: -2px; }
+        .clock-date { font-size: 19px; margin-top: -5px; font-weight: 400; }
+
+        .app-grid { margin-top: 40px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 25px; }
+        .app-item { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; }
+        .app-icon { 
+            width: 62px; height: 62px; border-radius: 16px; background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(15px); display: flex; align-items: center; justify-content: center; 
+            font-size: 32px; box-shadow: 0 8px 20px rgba(0,0,0,0.2); transition: transform 0.2s;
+            border: 0.5px solid rgba(255,255,255,0.1);
+        }
+        .app-item:active .app-icon { transform: scale(0.9); }
+        .app-name { font-size: 11px; font-weight: 500; }
+        
+        .dock {
+            position: absolute; bottom: calc(25px + var(--safe-bottom)); 
+            left: 15px; right: 15px; height: 95px;
+            background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(30px);
+            border-radius: 35px; display: flex; justify-content: space-around; align-items: center; padding: 0 10px;
+            border: 0.5px solid rgba(255,255,255,0.1);
+        }
+
+        /* === 应用窗口样式重做 === */
+        .app-window {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #000;
+            z-index: 100; display: flex; flex-direction: column; transform: translateY(100%);
+            transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .app-window.open { transform: translateY(0); }
+
+        .nav-bar { 
+            height: calc(54px + var(--safe-top)); padding-top: var(--safe-top);
+            background: var(--nav-bg); backdrop-filter: blur(20px);
+            display: flex; align-items: center; justify-content: space-between; 
+            padding-left: 16px; padding-right: 16px; border-bottom: 0.5px solid #222; flex-shrink: 0; 
+        }
+        .nav-title { font-weight: 600; font-size: 17px; }
+        .nav-btn { border: none; background: none; color: #fff; font-size: 16px; cursor: pointer; }
+
+        .scroll-area { flex: 1; overflow-y: auto; padding: 15px; background: #000; }
+
+        /* === 💎 聊天界面极致美化 === */
+        .chat-view {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #000; z-index: 200;
+            display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.3s ease;
+        }
+        .chat-view.active { transform: translateX(0); }
+
+        .im-scroll { flex: 1; overflow-y: auto; padding: 15px; }
+        .im-inject { display: flex; flex-direction: column; gap: 24px; padding-bottom: 20px; }
+        .im-time-tag { align-self: center; font-size: 12px; color: #555; background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 4px; margin: 10px 0; }
+
+        .im-row { display: flex; width: 100%; gap: 12px; }
+        .im-row.user { flex-direction: row-reverse; }
+
+        .im-avatar { width: 42px; height: 42px; border-radius: 8px; flex-shrink: 0; background: #333; overflow: hidden; border: 0.5px solid #222; }
+        .im-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+        .im-bubble { 
+            max-width: calc(100% - 110px); padding: 11px 15px; border-radius: 12px; font-size: 16px; 
+            line-height: 1.5; color: #fff; background: var(--im-bubble-ai); 
+            position: relative; word-wrap: break-word; overflow-wrap: anywhere; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2); transition: opacity 0.2s;
+        }
+        .im-bubble:active { opacity: 0.7; }
+        .im-row.user .im-bubble { background: var(--im-bubble-user); border-top-right-radius: 2px; }
+        .im-row.ai .im-bubble { border-top-left-radius: 2px; }
+
+        /* === 💎 完美复刻底部栏 === */
+        .im-footer { background: #121212; padding-bottom: var(--safe-bottom); border-top: 0.5px solid #222; flex-shrink: 0; }
+        .im-input-bar { display: flex; align-items: center; padding: 10px 12px; gap: 12px; }
+        
+        .im-btn-icon { color: #b2b2b2; font-size: 24px; cursor: pointer; transition: color 0.2s; }
+        .im-btn-icon:active { color: #fff; }
+
+        .im-input-wrap { 
+            flex: 1; background: #242426; border-radius: 8px; display: flex; 
+            align-items: center; padding: 0 12px; min-height: 40px; border: 0.5px solid #333;
+        }
+        .im-input { 
+            flex: 1; background: transparent; border: none; outline: none; 
+            color: #fff; font-size: 16px; padding: 10px 0; font-family: inherit;
+        }
+
+        /* 附件面板优化 */
+        .tools-panel { height: 0; overflow: hidden; transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1); background: #121212; display: grid; grid-template-columns: repeat(4, 1fr); padding: 0 20px; }
+        .tools-panel.show { height: 115px; padding: 20px; border-top: 0.5px solid #222; }
+        .tool-box { display: flex; flex-direction: column; align-items: center; gap: 8px; color: #888; font-size: 11px; }
+        .tool-icon-bg { width: 56px; height: 56px; background: #262628; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 28px; }
+
+        /* === 设置页美化 === */
+        .set-group { background: var(--card-bg); border-radius: 12px; margin-bottom: 20px; overflow: hidden; }
+        .set-row { 
+            padding: 14px 16px; border-bottom: 0.5px solid #2c2c2e; 
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .set-row:last-child { border-bottom: none; }
+        .set-label { font-size: 15px; color: #fff; }
+        .set-val { font-size: 15px; color: var(--text-sec); text-align: right; border: none; background: transparent; outline: none; width: 60%; font-family: inherit; }
+        
+        .btn-action { width: 100%; padding: 16px; border-radius: 12px; border: none; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 12px; }
+        .btn-gray { background: #2c2c2e; color: #fff; }
+        .btn-red { background: #2c2c2e; color: #ff453a; }
+
+        /* 模态框美化 */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 5000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(10px); }
+        .modal-box { background: #1c1c1e; width: 88%; max-width: 340px; border-radius: 20px; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); border: 0.5px solid #333; }
+        .modal-input { width: 100%; background: #2c2c2e; border: none; border-radius: 10px; padding: 12px; color: #fff; font-size: 16px; margin-bottom: 15px; outline: none; }
+
+        .noti-banner {
+            position: absolute; top: -100px; left: 12px; right: 12px; height: 70px;
+            background: rgba(30, 30, 30, 0.9); backdrop-filter: blur(25px);
+            border-radius: 18px; padding: 12px; display: flex; align-items: center; gap: 12px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4); z-index: 2000; transition: top 0.5s ease; border: 0.5px solid #333;
+        }
+        .noti-banner.show { top: calc(10px + var(--safe-top)); }
+    </style>
+</head>
+<body>
+
+<div id="phone-wrapper">
+    <!-- 状态栏 -->
+    <div class="status-bar">
+        <div id="st-time">12:00</div>
+        <div style="display:flex; gap:6px; align-items:center;">
+            <span>📶</span><span>5G</span>
+            <div style="width:22px; height:11px; border:1px solid rgba(255,255,255,0.5); border-radius:3px; padding:1px;">
+                <div style="width:80%; height:100%; background:#fff;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 系统通知 -->
+    <div id="noti-banner" class="noti-banner" onclick="jumpToChat()">
+        <div style="width:44px;height:44px;background:var(--primary-color);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;">💬</div>
+        <div style="flex:1;overflow:hidden">
+            <div id="noti-n" style="font-weight:700;font-size:14px;">角色名字</div>
+            <div id="noti-t" style="font-size:13px;color:#ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">发送了一条消息...</div>
+        </div>
+    </div>
+
+    <!-- 1. 桌面 -->
+    <div class="desktop-layer">
+        <div class="clock-widget">
+            <div class="clock-time" id="dk-time">12:00</div>
+            <div class="clock-date" id="dk-date">1月11日 星期日</div>
+        </div>
+        <div class="app-grid">
+            <div class="app-item" onclick="openApp('win-chat'); Notification.requestPermission();">
+                <div class="app-icon" style="background: linear-gradient(135deg, #28cd41, #07c160);">💬</div>
+                <div class="app-name">消息</div>
+            </div>
+            <div class="app-item" onclick="openApp('win-sets')">
+                <div class="app-icon" style="background: linear-gradient(135deg, #8e8e93, #636366);">⚙️</div>
+                <div class="app-name">设置</div>
+            </div>
+            <div class="app-item">
+                <div class="app-icon" style="background: #fff;"><img src="https://img.icons8.com/color/96/photos.png" width="40"></div>
+                <div class="app-name">相册</div>
+            </div>
+        </div>
+        <div class="dock">
+            <div class="app-icon" style="background: linear-gradient(135deg, #28cd41, #07c160);" onclick="openApp('win-chat')">💬</div>
+            <div class="app-icon" style="background: #fff;"><img src="https://img.icons8.com/ios-filled/100/000000/phone.png" width="30"></div>
+            <div class="app-icon" style="background: #fff;"><img src="https://img.icons8.com/ios-filled/100/000000/safari.png" width="30"></div>
+            <div class="app-icon" style="background: #fff;"><img src="https://img.icons8.com/ios-filled/100/000000/apple-music.png" width="30"></div>
+        </div>
+    </div>
+
+    <!-- 应用窗口：设置 (iOS风格) -->
+    <div class="app-window" id="win-sets">
+        <div class="nav-bar"><button class="nav-btn" onclick="closeApp('win-sets')">取消</button><div class="nav-title">设置</div><button class="nav-btn" style="font-weight:700;color:var(--ios-blue)" onclick="saveGlobalSets()">完成</button></div>
+        <div class="scroll-area">
+            <div class="set-group">
+                <div class="set-row"><span class="set-label">API 地址</span><input type="text" class="set-val" id="set-url"></div>
+                <div class="set-row"><span class="set-label">API Key</span><input type="password" class="set-val" id="set-key"></div>
+                <div class="set-row">
+                    <span class="set-label">模型</span>
+                    <div id="model-select-wrapper" style="width:60%; text-align:right">
+                        <input type="text" class="set-val" id="set-model" style="width:70%">
+                        <span onclick="fetchModelsList()" style="color:var(--ios-blue);font-weight:600;font-size:13px;margin-left:5px">拉取</span>
+                    </div>
+                </div>
+            </div>
+            <div class="set-group">
+                <div class="set-row"><span class="set-label">温度 (Temperature)</span><input type="range" id="set-temp" min="0" max="2" step="0.1" style="width:50%"></div>
+                <div class="set-row"><span class="set-label">壁纸 URL</span><input type="text" class="set-val" id="set-bg"></div>
+            </div>
+            <button onclick="exportData()" class="btn-action btn-gray">📤 备份数据到本地</button>
+            <button onclick="localStorage.clear(); location.reload();" class="btn-action btn-red">🗑️ 擦除所有数据并重置</button>
+        </div>
+    </div>
+
+    <!-- 应用窗口：会话列表 -->
+    <div class="app-window" id="win-chat">
+        <div class="nav-bar"><button class="nav-btn" onclick="closeApp('win-chat')">桌面</button><div class="nav-title">消息</div><button class="nav-btn" style="font-size:28px" onclick="openModal('create')">+</button></div>
+        <div class="scroll-area" id="list-con" style="padding:0"></div>
+    </div>
+
+    <!-- 聊天详情页 (极致复刻) -->
+    <div class="chat-view" id="win-room">
+        <div class="nav-bar">
+            <button class="nav-btn" onclick="exitRoom()"><span style="font-size:20px;margin-right:2px">❮</span> 2953</button>
+            <div id="room-n" class="nav-title">名字</div>
+            <button class="nav-btn" onclick="openModal('edit')" style="font-size:20px;letter-spacing:1px">•••</button>
+        </div>
+        <div class="im-scroll" id="im-scroll">
+            <div class="im-inject" id="im-inject"></div>
+        </div>
+        <div class="im-footer">
+            <div class="im-input-bar">
+                <div class="im-btn-icon" style="font-size:28px">🎙️</div>
+                <div class="im-input-wrap">
+                    <input type="text" id="chat-inp" class="im-input" onkeypress="if(event.key==='Enter')handleSend()">
+                </div>
+                <div class="im-btn-icon">😊</div>
+                <div class="im-btn-icon" style="font-size:30px" onclick="toggleT()">⊕</div>
+            </div>
+            <div class="tools-panel" id="t-panel">
+                <div class="tool-box" onclick="up('img')"><div class="tool-icon-bg">🖼️</div><span>相册</span></div>
+                <div class="tool-box" onclick="up('file')"><div class="tool-icon-bg">📄</div><span>文件</span></div>
+                <div class="tool-box" onclick="clearH()"><div class="tool-icon-bg">🗑️</div><span>清空对话</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 统一模态框 -->
+    <div class="modal-overlay" id="mo-overlay">
+        <div class="modal-box">
+            <h3 id="mo-title" style="text-align:center;margin-bottom:20px;font-size:17px">角色配置</h3>
+            <input type="text" id="mo-n" class="modal-input" placeholder="角色名字">
+            <textarea id="mo-p" class="modal-input" style="height:120px;resize:none" placeholder="人设设定 (System Prompt)"></textarea>
+            
+            <div style="background:rgba(255,255,255,0.05);padding:12px;border-radius:12px;margin-bottom:20px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                    <span style="font-size:14px;color:#ccc">主动打招呼</span>
+                    <input type="checkbox" id="mo-active" style="width:20px;height:20px">
+                </div>
+                <div style="display:flex;align-items:center;gap:10px">
+                    <span style="font-size:12px;color:#888">间隔(分钟):</span>
+                    <input type="number" id="mo-interval" style="width:60px;background:#333;color:#fff;border:none;padding:5px;border-radius:6px" value="60">
+                </div>
+            </div>
+
+            <div style="display:flex;gap:12px">
+                <button onclick="hideModal()" class="modal-btn" style="background:#3a3a3c;color:#fff">取消</button>
+                <button onclick="commitModal()" class="modal-btn" style="background:var(--primary-color);color:#fff">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 消息修正模态框 -->
+    <div class="modal-overlay" id="edit-msg-overlay">
+        <div class="modal-box">
+            <h3 style="text-align:center;margin-bottom:15px;font-size:16px">修改对话内容</h3>
+            <textarea id="edit-msg-val" class="modal-input" style="height:150px;resize:none"></textarea>
+            <div style="display:flex;gap:12px">
+                <button onclick="document.getElementById('edit-msg-overlay').style.display='none'" class="modal-btn" style="background:#3a3a3c;color:#fff">取消</button>
+                <button id="save-msg-btn" class="modal-btn" style="background:var(--ios-blue);color:#fff">修正记忆</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="up-i" accept="image/*" style="display:none" onchange="dImg(this)">
+    <input type="file" id="up-f" accept=".txt,.md" style="display:none" onchange="dFile(this)">
+    <canvas id="comp-c" style="display:none"></canvas>
+</div>
+
+<script>
+    let chars = [], sets = {}, curId = null, mMode = 'create', swReg = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        chars = JSON.parse(localStorage.getItem('characters') || '[]');
+        sets = JSON.parse(localStorage.getItem('settings') || '{"apiUrl":"","apiKey":"","modelName":"gpt-4o","temp":0.7}');
+        
+        document.getElementById('set-url').value = sets.apiUrl || '';
+        document.getElementById('set-key').value = sets.apiKey || '';
+        document.getElementById('set-model').value = sets.modelName || 'gpt-4o';
+        document.getElementById('set-temp').value = sets.temp || 0.7;
+        if(sets.bgUrl) document.getElementById('phone-wrapper').style.backgroundImage = `url(${sets.bgUrl})`;
+
+        updateClock(); setInterval(updateClock, 1000);
+        renderList();
+        initSW();
+        setInterval(checkActiveInteract, 60000); // 轮询主动消息
+    });
+
+    async function initSW() {
+        if ('serviceWorker' in navigator) swReg = await navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    }
+
+    // --- 🚀 核心：主动发消息 ---
+    async function checkActiveInteract() {
+        const now = Date.now();
+        chars.forEach(async (c) => {
+            if (c.activeInteract && c.activeInterval) {
+                const lastTime = c.lastMsgTime || c.id;
+                if (now - lastTime > c.activeInterval * 60 * 1000) {
+                    c.lastMsgTime = now;
+                    const reply = await getAIReply(c, "（系统指令：用户很久没说话了，请根据你的人设主动发一句简短的消息，引起用户的注意，不要超过20字，不要带符号）");
+                    if (reply) {
+                        c.messages.push({ role: 'assistant', content: reply });
+                        saveData();
+                        if(curId === c.id) renderMsgs();
+                        triggerPush(c.name, reply, c.id);
+                    }
+                }
+            }
+        });
+    }
+
+    async function getAIReply(char, sysPrompt = null) {
+        try {
+            const hist = sysPrompt 
+                ? [...char.messages.slice(-5), { role:'system', content: sysPrompt }]
+                : [{role:'system', content:char.prompt}, ...char.messages.slice(-10)];
+            const res = await fetch(sets.apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${sets.apiKey}` },
+                body: JSON.stringify({ model: sets.modelName, temperature: parseFloat(sets.temp), messages: hist })
+            });
+            const d = await res.json();
+            return d.choices[0].message.content;
+        } catch(e) { return null; }
+    }
+
+    // --- 🚀 功能：列表化选择模型 ---
+    async function fetchModelsList() {
+        const u = document.getElementById('set-url').value.replace('/chat/completions','').replace(/\/+$/,'') + '/models';
+        const k = document.getElementById('set-key').value;
+        try {
+            const r = await fetch(u, { headers: { 'Authorization': `Bearer ${k}` } });
+            const d = await r.json();
+            const models = d.data || [];
+            if(models.length > 0) {
+                const cur = document.getElementById('set-model').value;
+                document.getElementById('model-select-wrapper').innerHTML = `
+                    <select id="set-model" class="set-val" style="width:100%;background:#2c2c2e;color:#fff;border-radius:6px;padding:4px">
+                        ${models.map(m => `<option value="${m.id}" ${m.id===cur?'selected':''}>${m.id}</option>`).join('')}
+                    </select>
+                `;
+            }
+        } catch(e) { alert('获取失败，请手动输入'); }
+    }
+
+    // --- 🚀 功能：编辑消息 ---
+    function openEditMsg(msgIndex) {
+        const c = chars.find(x => x.id === curId);
+        const msg = c.messages[msgIndex];
+        const overlay = document.getElementById('edit-msg-overlay');
+        const area = document.getElementById('edit-msg-val');
+        area.value = typeof msg.content === 'string' ? msg.content : "[多媒体消息不可编辑]";
+        overlay.style.display = 'flex';
+        document.getElementById('save-msg-btn').onclick = () => {
+            msg.content = area.value;
+            saveData(); renderMsgs();
+            overlay.style.display = 'none';
+        };
+    }
+
+    // --- UI 基础逻辑 ---
+    function updateClock() {
+        const n = new Date();
+        const t = n.getHours().toString().padStart(2,'0') + ':' + n.getMinutes().toString().padStart(2,'0');
+        document.getElementById('st-time').innerText = t; document.getElementById('dk-time').innerText = t;
+        const days = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+        document.getElementById('dk-date').innerText = `${n.getMonth()+1}月${n.getDate()}日 ${days[n.getDay()]}`;
+    }
+
+    function openApp(id) { document.getElementById(id).classList.add('open'); }
+    function closeApp(id) { document.getElementById(id).classList.remove('open'); }
+    
+    function openRoom(id) {
+        curId = id;
+        const c = chars.find(x => x.id === id);
+        document.getElementById('room-n').innerText = c.name;
+        document.getElementById('win-room').classList.add('active');
+        renderMsgs();
+    }
+    function exitRoom() { document.getElementById('win-room').classList.remove('active'); curId = null; renderList(); }
+
+    function renderList() {
+        const con = document.getElementById('list-con'); con.innerHTML = '';
+        chars.forEach(c => {
+            const last = c.messages.length ? (typeof c.messages[c.messages.length-1].content==='string'?c.messages[c.messages.length-1].content.substring(0,20):'[多媒体]') : '新朋友';
+            const item = document.createElement('div');
+            item.className = 'char-item';
+            item.onclick = () => openRoom(c.id);
+            item.innerHTML = `<div class="im-avatar" style="background:#444;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">${c.name[0]}</div><div style="flex:1;overflow:hidden"><div style="font-weight:600;font-size:16px;color:#000">${c.name}</div><div style="font-size:13px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${last}</div></div>`;
+            con.appendChild(item);
+        });
+    }
+
+    function renderMsgs() {
+        const c = chars.find(x => x.id === curId);
+        const inj = document.getElementById('im-inject'); inj.innerHTML = '';
+        inj.innerHTML += `<div class="im-time-tag">${new Date().getHours()>12?'下午':'上午'} ${new Date().getHours()%12}:${new Date().getMinutes().toString().padStart(2,'0')}</div>`;
+        
+        c.messages.forEach((m, idx) => {
+            const row = document.createElement('div');
+            row.className = `im-row ${m.role === 'user' ? 'user' : 'ai'}`;
+            const bubble = document.createElement('div');
+            bubble.className = 'im-bubble';
+            bubble.innerHTML = (typeof m.content === 'string') ? m.content.replace(/\n/g,"<br>") : '[图片/文件]';
+            bubble.onclick = () => openEditMsg(idx); // 点击消息编辑
+            
+            const av = `<div class="im-avatar" style="background:${m.role==='user'?'#007AFF':'#444'}">${m.role==='user'?'我':c.name[0]}</div>`;
+            row.innerHTML = m.role === 'user' ? bubble.outerHTML + av : av + bubble.outerHTML;
+            inj.appendChild(row);
+            // 重新绑定事件 (因为outerHTML会丢失)
+            row.querySelector('.im-bubble').onclick = () => openEditMsg(idx);
+        });
+        document.getElementById('im-scroll').scrollTop = 999999;
+    }
+
+    async function handleSend() {
+        const inp = document.getElementById('chat-inp');
+        const v = inp.value.trim(); if(!v || !curId) return;
+        const c = chars.find(x => x.id === curId);
+        c.messages.push({ role: 'user', content: v });
+        c.lastMsgTime = Date.now();
+        inp.value = ''; renderMsgs();
+
+        const reply = await getAIReply(c);
+        if(reply){
+            c.messages.push({ role: 'assistant', content: reply });
+            saveData(); renderMsgs();
+        }
+    }
+
+    function triggerPush(n, b, id) {
+        if (Notification.permission === "granted") {
+            const opt = { body: b, icon: 'https://img.icons8.com/color/96/chat--v1.png', tag: 'ai-os' };
+            if (swReg) swReg.showNotification(n, opt); else new Notification(n, opt);
+        }
+    }
+
+    function saveGlobalSets() {
+        const newSets = {
+            apiUrl: document.getElementById('set-url').value,
+            apiKey: document.getElementById('set-key').value,
+            modelName: document.getElementById('set-model').value,
+            temp: document.getElementById('set-temp').value,
+            bgUrl: document.getElementById('set-bg').value
+        };
+        localStorage.setItem('settings', JSON.stringify(newSets));
+        location.reload();
+    }
+
+    function openModal(t) {
+        mMode = t;
+        if(t==='edit') {
+            const c=chars.find(x=>x.id===curId);
+            document.getElementById('mo-n').value=c.name;
+            document.getElementById('mo-p').value=c.prompt;
+            document.getElementById('mo-active').checked=c.activeInteract;
+            document.getElementById('mo-interval').value=c.activeInterval || 60;
+        } else {
+            document.getElementById('mo-n').value=''; document.getElementById('mo-p').value='';
+            document.getElementById('mo-active').checked=false;
+        }
+        document.getElementById('mo-overlay').style.display='flex';
+    }
+    function hideModal() { document.getElementById('mo-overlay').style.display='none'; }
+    function commitModal() {
+        const n=document.getElementById('mo-n').value.trim(), p=document.getElementById('mo-p').value.trim();
+        if(!n) return;
+        const active = document.getElementById('mo-active').checked;
+        const interval = parseInt(document.getElementById('mo-interval').value);
+        if(mMode==='create') chars.unshift({ id:Date.now(), name:n, prompt:p, messages:[], activeInteract:active, activeInterval:interval });
+        else { const c=chars.find(x=>x.id===curId); c.name=n; c.prompt=p; c.activeInteract=active; c.activeInterval=interval; document.getElementById('room-n').innerText=n; }
+        saveData(); renderList(); hideModal();
+    }
+
+    function toggleT() { document.getElementById('t-panel').classList.toggle('show'); }
+    function clearH() { if(confirm('清空对话？')){ const c=chars.find(x=>x.id===curId); c.messages=[]; saveData(); renderMsgs(); toggleT(); } }
+    function saveData() { localStorage.setItem('characters', JSON.stringify(chars)); }
+    function exportData() { const b = new Blob([JSON.stringify({chars, sets})], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'ai_os_backup.json'; a.click(); }
+</script>
+</body>
+</html>
