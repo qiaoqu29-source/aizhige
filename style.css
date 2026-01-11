@@ -1,0 +1,134 @@
+/* === 极简白 (Minimalist White) 强制重写版 === */
+:root {
+    --bg-color: #F2F2F7;       /* 浅灰底色 */
+    --card-white: #FFFFFF;     /* 纯白卡片 */
+    --text-black: #000000;     /* 纯黑文字 */
+    --text-grey: #8E8E93;      /* 灰色辅助字 */
+    --shadow: 0 4px 20px rgba(0,0,0,0.05); /* 极淡阴影 */
+    --safe-top: env(safe-area-inset-top);
+    --safe-bottom: env(safe-area-inset-bottom);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg-color);
+    color: var(--text-black);
+    height: 100dvh; overflow: hidden;
+}
+
+/* 1. 强制覆盖背景图 -> 变成纯色 */
+#phone-wrapper {
+    background: var(--bg-color) !important;
+    background-image: none !important; /* 删掉之前的图片 */
+}
+#phone-wrapper::before { display: none !important; } /* 删掉之前的遮罩 */
+
+/* 2. 状态栏变黑字 */
+.status-bar { color: #000 !important; z-index: 999; }
+.status-bar .battery { border-color: #000 !important; }
+.status-bar .battery-level { background: #000 !important; }
+
+/* 3. 桌面容器 */
+.desktop-layer { padding: 10px 20px 30px; display: flex; flex-direction: column; height: 100%; }
+
+/* 4. Profile 卡片 (纯白悬浮) */
+.profile-card {
+    background: transparent !important; /* 透明背景 */
+    box-shadow: none !important;
+    border: none !important;
+    height: auto !important;
+    padding: 20px 0 !important;
+    align-items: flex-start !important; /* 左对齐 */
+    text-align: left !important;
+    margin: 0 0 20px 0 !important; /* 修正边距 */
+}
+.profile-bg { display: none !important; } /* 隐藏背景图 */
+
+.profile-avatar-wrap {
+    width: 60px !important; height: 60px !important;
+    position: relative !important; top: 0 !important; left: 0 !important; transform: none !important;
+    box-shadow: var(--shadow) !important;
+    margin-bottom: 15px !important;
+    border: none !important; padding: 0 !important;
+}
+.profile-info { margin-top: 0 !important; width: 100%; }
+.p-name { color: #000 !important; font-size: 32px !important; line-height: 1.1; margin-bottom: 5px; }
+.p-handle { color: #888 !important; font-size: 14px !important; font-weight: 400; }
+.p-bio, .p-location { display: none !important; } /* 隐藏多余信息，只留名字 */
+
+/* 5. 中间 Grid (全白卡片) */
+.dashboard-grid { padding: 0 !important; margin-bottom: 20px; gap: 15px; }
+
+/* 左侧：文字组件 */
+.text-widget {
+    background: var(--card-white) !important;
+    box-shadow: var(--shadow) !important;
+    border: none !important;
+    color: #000 !important;
+    backdrop-filter: none !important;
+    border-radius: 20px !important;
+}
+.text-widget span { font-weight: 600; }
+.text-widget .t-icon { background: #000 !important; opacity: 1 !important; }
+
+/* 右侧：APP图标 (变白底黑字) */
+.mini-app-grid .app-item {
+    background: var(--card-white) !important;
+    border-radius: 20px !important;
+    box-shadow: var(--shadow) !important;
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+}
+.mini-app-grid .app-icon {
+    background: transparent !important; /* 图标背景透明 */
+    box-shadow: none !important;
+    color: #000 !important; /* 图标变黑 */
+    font-size: 24px !important;
+    width: auto !important; height: auto !important;
+}
+.mini-app-grid .app-name { display: none !important; } /* 隐藏名字，极简 */
+
+/* 6. 底部 Dock (悬浮白条) */
+.dock-container { padding: 0 !important; margin-top: auto; }
+.dock {
+    background: var(--card-white) !important;
+    border: none !important;
+    border-radius: 100px !important; /* 胶囊圆角 */
+    height: 70px !important;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.08) !important;
+    backdrop-filter: none !important;
+    width: 100% !important;
+    justify-content: space-evenly !important;
+}
+.dock .app-item { transform: none !important; }
+.dock .app-icon {
+    background: transparent !important;
+    color: #000 !important;
+    width: auto !important; height: auto !important;
+    border-radius: 0 !important; font-size: 20px !important;
+}
+.dock .app-name { display: none !important; }
+.page-dots { display: none !important; } /* 隐藏页码点 */
+
+/* 7. APP 窗口 (适配白色) */
+.app-window, .chat-view { background: #F2F2F7 !important; }
+.nav-bar { background: #FFFFFF !important; color: #000 !important; border-bottom: 1px solid #eee; }
+.nav-title { color: #000 !important; }
+.nav-btn { color: #007AFF !important; }
+.scroll-area, .im-scroll { background: #F2F2F7 !important; }
+
+/* 设置列表 */
+.set-group { background: #fff !important; }
+.set-label { color: #000 !important; }
+.set-row { border-bottom-color: #f0f0f0 !important; }
+.set-val { color: #666 !important; }
+
+/* 聊天气泡 */
+.im-bubble { background: #fff !important; color: #000 !important; box-shadow: var(--shadow); }
+.im-row.user .im-bubble { background: #000 !important; color: #fff !important; } /* 用户黑底白字 */
+.im-footer { background: #fff !important; border-top: none; }
+.im-input-wrap { background: #F2F2F7 !important; }
+.im-input { color: #000 !important; }
+.im-btn-icon { color: #000 !important; }
