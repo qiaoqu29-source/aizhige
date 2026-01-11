@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>AI OS Designer Pro</title>
+    <!-- PWA 配置 -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- 引入样式表 -->
+    <link rel="stylesheet" href="style.css">
+    <!-- 修复：引入 FontAwesome 图标库，否则图标不显示 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" href="https://img.icons8.com/color/96/brain--v1.png">
+
+<style>
+    /* 强制修复图标偏移问题 */
+    .app-icon, 
+    .dock .app-icon, 
+    .mini-app-grid .app-icon {
+        display: grid !important;          /* 使用 Grid 布局更稳 */
+        place-items: center !important;    /* 水平垂直绝对居中 */
+        place-content: center !important;  /* 内容居中 */
+        text-align: center !important;
+        line-height: 1 !important;         /* 消除文字行高偏移 */
+    }
+
+    /* 修复 FontAwesome 图标本身的边距干扰 */
+    .app-icon i,
+    .app-icon span {
+        margin: 0 !important;
+        padding: 0 !important;
+        display: block !important;
+        line-height: normal !important;
+        font-size: inherit; /* 继承父容器字体大小 */
+    }
+
+    /* 针对纯文字图标 (API, Aa) 的微调 */
+    .dock .app-icon {
+        font-size: 20px !important; /* 文字图标稍微小一点才好看 */
+        font-weight: 600 !important;
+    }
+    
+    /* 针对 FontAwesome 图标 (QQ, 设置) 的微调 */
+    .mini-app-grid .app-icon {
+        font-size: 28px !important;
+    }
+</style>
+</head>
+<body>
+
+<div id="phone-wrapper">
+    <!-- 状态栏 -->
+    <div class="status-bar">
+        <div id="st-time">12:00</div>
+        <div style="display:flex; gap:6px; align-items:center;">
+            <span>📶</span><span>5G</span>
+            <div class="battery"><div class="battery-level"></div></div>
+        </div>
+    </div>
+
+    <!-- 系统通知弹窗 -->
+    <div id="noti-banner" class="noti-banner" onclick="jumpToChat()">
+        <div class="noti-icon"><i class="fas fa-comment"></i></div>
+        <div style="flex:1;overflow:hidden">
+            <div id="noti-n" style="font-weight:700;font-size:15px; margin-bottom:2px">角色名字</div>
+            <div id="noti-t" style="font-size:13px;color:#ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">消息内容...</div>
+        </div>
+    </div>
+
+    <!-- === 1. 桌面图层 (核心修改区域) === -->
+    <div class="desktop-layer">
+        
+        
+        <!-- 改版后的极简 Profile -->
+        <div class="profile-card">
+    <!-- 头像 -->
+    <div class="profile-avatar-wrap">
+        <img src="https://api.dicebear.com/9.x/micah/svg?seed=Moom&backgroundColor=transparent" alt="Avatar">
+    </div>
+    
+    <!-- 文字排版：更加大胆的层级 -->
+    <div class="profile-info">
+        <span class="p-name">Hello,<br>User.</span>
+        <span class="p-handle">moom / creative developer</span>
+        
+        <!-- 用一个极简的图标代替复杂的定位条 -->
+        <div class="p-location">
+            <i class="fas fa-arrow-right" style="font-size:14px; transform: rotate(-45deg);"></i>
+        </div>
+    </div>
+</div>
+
+        <!-- 中部区域：左语录，右APP -->
+        <div class="dashboard-grid">
+            <!-- 左侧：语录组件 -->
+            <div class="widget-column">
+                <div class="text-widget">
+                    <div class="t-icon"></div> <!-- 装饰用圆点 -->
+                    <span>Dare to be<br>different</span>
+                </div>
+                <div class="text-widget">
+                    <span>Keep your<br>spirit free</span>
+                    <div class="t-icon" style="margin-left:auto; background:rgba(255,255,255,0.3);"></div>
+                </div>
+            </div>
+
+            <!-- 右侧：APP网格 -->
+            <div class="mini-app-grid">
+                <!-- QQ图标 -> 打开聊天列表 (win-chat) -->
+                <div class="app-item" onclick="openApp('win-chat')">
+                    <div class="app-icon style-blue"><i class="fas fa-envelope"></i></div>
+                    <span class="app-name">QQ</span>
+                </div>
+                
+                <!-- 世界书 -> 暂无功能，暂时留空或映射到设置 -->
+                <div class="app-item" onclick="alert('功能开发中...')">
+                    <div class="app-icon style-blue"><i class="fas fa-book"></i></div>
+                    <span class="app-name">世界书</span>
+                </div>
+                
+                <!-- 外观设置 -> 打开设置 (win-sets) -->
+                <div class="app-item" onclick="openApp('win-sets')">
+                    <div class="app-icon style-white"><i class="fas fa-cog"></i></div>
+                    <span class="app-name">外观设置</span>
+                </div>
+                
+                <!-- 渲染器 -> 暂无功能 -->
+                <div class="app-item" onclick="alert('功能开发中...')">
+                    <div class="app-icon style-white"><i class="fas fa-magic"></i></div>
+                    <span class="app-name">渲染器</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部 Dock 区域 -->
+        <div class="dock-container">
+            <div class="page-dots">
+                <div class="dot active"></div>
+                <div class="dot"></div>
+            </div>
+            
+            <div class="dock">
+                <!-- 设置/API -->
+                <div class="app-item" onclick="openApp('win-sets')">
+                    <div class="app-icon style-white" style="display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px">API</div>
+                    <span class="app-name">设置</span>
+                </div>
+                <!-- 字体 -->
+                <div class="app-item">
+                    <div class="app-icon style-white" style="display:flex;align-items:center;justify-content:center;font-weight:700">Aa</div>
+                    <span class="app-name">字体</span>
+                </div>
+                <!-- CPhone -->
+                <div class="app-item">
+                    <div class="app-icon style-blue-light" style="display:flex;align-items:center;justify-content:center;font-weight:700">Ph</div>
+                    <span class="app-name">CPhone</span>
+                </div>
+                <!-- 豆瓣 -->
+                <div class="app-item">
+                    <div class="app-icon style-blue-light" style="display:flex;align-items:center;justify-content:center;font-weight:700">B</div>
+                    <span class="app-name">豆瓣</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- === 应用窗口：可滑动上来的APP === -->
+
+    <!-- 1. 设置窗口 -->
+    <div class="app-window" id="win-sets">
+        <div class="nav-bar">
+            <button class="nav-btn" onclick="closeApp('win-sets')">取消</button>
+            <div class="nav-title">系统设置</div>
+            <button class="nav-btn" style="font-weight:700;color:var(--primary-color)" onclick="saveGlobalSets()">完成</button>
+        </div>
+        <div class="scroll-area">
+            <div class="set-group">
+                <div class="set-row"><span class="set-label">API 地址</span><input type="text" class="set-val" id="set-url" placeholder="https://..."></div>
+                <div class="set-row"><span class="set-label">API Key</span><input type="password" class="set-val" id="set-key" placeholder="sk-..."></div>
+                <div class="set-row">
+                    <span class="set-label">模型</span>
+                    <div id="model-wrapper" style="width:60%;display:flex;justify-content:flex-end;align-items:center">
+                        <input type="text" class="set-val" id="set-model" style="width:70%" placeholder="claude-3-5-sonnet">
+                        <span onclick="fetchModelsList()" style="color:var(--ios-blue);font-weight:600;font-size:13px;margin-left:5px;cursor:pointer">拉取</span>
+                    </div>
+                </div>
+            </div>
+            <div class="set-group">
+                <div class="set-row"><span class="set-label">温度 (Temp)</span><input type="range" id="set-temp" min="0" max="2" step="0.1" style="width:50%"></div>
+                <div class="set-row"><span class="set-label">壁纸 URL</span><input type="text" class="set-val" id="set-bg" placeholder="图片链接"></div>
+            </div>
+            <button onclick="exportData()" class="btn-action btn-gray"><i class="fas fa-file-export"></i> 备份数据到本地</button>
+            <button onclick="localStorage.clear(); location.reload();" class="btn-action btn-red"><i class="fas fa-trash"></i> 擦除所有数据并重置</button>
+        </div>
+    </div>
+
+    <!-- 2. 会话列表窗口 -->
+    <div class="app-window" id="win-chat">
+        <div class="nav-bar">
+            <button class="nav-btn" onclick="closeApp('win-chat')">桌面</button>
+            <div class="nav-title">消息</div>
+            <button class="nav-btn" style="font-size:24px" onclick="openModal('create')"><i class="fas fa-pen-to-square"></i></button>
+        </div>
+        <div class="scroll-area" id="list-con" style="padding:0">
+            <!-- JS 会在这里填充聊天列表 -->
+        </div>
+    </div>
+
+    <!-- 3. 聊天详情页 (最上层) -->
+    <div class="chat-view" id="win-room">
+        <div class="nav-bar">
+            <button class="nav-btn" onclick="exitRoom()"><span style="font-size:18px;margin-right:2px"><i class="fas fa-chevron-left"></i></span> 返回</button>
+            <div id="room-n" class="nav-title">名字</div>
+            <button class="nav-btn" onclick="openModal('edit')" style="font-size:18px"><i class="fas fa-ellipsis"></i></button>
+        </div>
+        <div class="im-scroll" id="im-scroll">
+            <div class="im-inject" id="im-inject"></div>
+        </div>
+        <div class="im-footer">
+            <div class="im-input-bar">
+                <div class="im-btn-icon"><i class="fas fa-microphone"></i></div>
+                <div class="im-input-wrap">
+                    <input type="text" id="chat-inp" class="im-input" onkeypress="if(event.key==='Enter')handleSend()">
+                </div>
+                <div class="im-btn-icon"><i class="far fa-smile"></i></div>
+                <div class="im-btn-icon" style="font-size:26px" onclick="toggleT()"><i class="fas fa-plus-circle"></i></div>
+            </div>
+            <div class="tools-panel" id="t-panel">
+                <div class="tool-box" onclick="up('img')"><div class="tool-icon-bg">🖼️</div><span>相册</span></div>
+                <div class="tool-box" onclick="up('file')"><div class="tool-icon-bg">📄</div><span>文件</span></div>
+                <div class="tool-box" onclick="clearH()"><div class="tool-icon-bg">🗑️</div><span>清空对话</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- === 模态框组件 === -->
+
+    <!-- 角色配置模态框 -->
+    <div class="modal-overlay" id="mo-overlay">
+        <div class="modal-box">
+            <h3 id="mo-title" style="text-align:center;margin-bottom:20px;font-size:17px">角色配置</h3>
+            
+            <span class="modal-label">名字</span>
+            <input type="text" id="mo-n" class="modal-input" placeholder="Name">
+            
+            <span class="modal-label">核心人设 (Prompt)</span>
+            <textarea id="mo-p" class="modal-input" style="height:80px;resize:none" placeholder="你是..."></textarea>
+            
+            <div style="position:relative">
+                <span class="modal-label">长期记忆 (Memory)</span>
+                <button class="btn-ai-magic" onclick="summarizeMemory()">🧠 智能提炼</button>
+                <textarea id="mo-mem" class="modal-input" style="height:100px;resize:none;color:#aaffaa" placeholder="这里存放重要的回忆..."></textarea>
+            </div>
+
+            <div style="background:rgba(255,255,255,0.05);padding:12px;border-radius:12px;margin-bottom:20px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+                    <span style="font-size:14px;color:#ccc">主动发消息</span>
+                    <input type="checkbox" id="mo-active" style="width:20px;height:20px">
+                </div>
+                <div style="display:flex;align-items:center;gap:10px">
+                    <span style="font-size:12px;color:#888">间隔(分钟):</span>
+                    <input type="number" id="mo-interval" style="width:60px;background:#333;color:#fff;border:none;padding:5px;border-radius:6px" value="60">
+                </div>
+            </div>
+
+            <div style="display:flex;gap:12px">
+                <button onclick="hideModal()" class="modal-btn" style="background:#3a3a3c;color:#fff">取消</button>
+                <button onclick="commitModal()" class="modal-btn" style="background:var(--primary-color);color:#fff">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 消息编辑模态框 -->
+    <div class="modal-overlay" id="edit-msg-overlay">
+        <div class="modal-box">
+            <h3 style="text-align:center;margin-bottom:15px;font-size:16px">修改对话内容</h3>
+            <textarea id="edit-msg-val" class="modal-input" style="height:150px;resize:none"></textarea>
+            <div style="display:flex;gap:12px">
+                <button onclick="document.getElementById('edit-msg-overlay').style.display='none'" class="modal-btn" style="background:#3a3a3c;color:#fff">取消</button>
+                <button id="save-msg-btn" class="modal-btn" style="background:var(--ios-blue);color:#fff">修正记忆</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 隐藏的功能输入 -->
+    <input type="file" id="up-i" accept="image/*" style="display:none" onchange="dImg(this)">
+    <input type="file" id="up-f" accept=".txt,.md" style="display:none" onchange="dFile(this)">
+    <canvas id="comp-c" style="display:none"></canvas>
+
+    <!-- 引入 JS -->
+    <script src="script.js"></script>
+</div>
+</body>
+</html>
