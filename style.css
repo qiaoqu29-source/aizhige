@@ -1,0 +1,193 @@
+:root {
+    --primary-color: #07C160; /* 微信绿 */
+    --ios-blue: #007AFF;
+    --safe-top: env(safe-area-inset-top);
+    --safe-bottom: env(safe-area-inset-bottom);
+    --bg-black: #000000;
+    --nav-bg: rgba(25, 25, 25, 0.8);
+    --card-bg: #1c1c1e;
+    --im-bubble-ai: #2c2c2c;
+    --im-bubble-user: #303030;
+    --text-main: #ffffff;
+    --text-sec: #8e8e93;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    height: 100dvh; width: 100vw; overflow: hidden; background: #000; color: var(--text-main);
+}
+
+/* ...保留原本的 :root, body, #phone-wrapper, .status-bar 配置... */
+
+/* === 桌面布局容器 === */
+.desktop-layer {
+    display: flex;
+    flex-direction: column;
+    padding: 0; /* 移除原来的padding，由子元素控制 */
+    height: 100%;
+    position: relative;
+    z-index: 10;
+    overflow-y: auto; /* 允许小屏滚动 */
+}
+
+/* === 1. 顶部个人卡片 (Profile Card) === */
+.profile-card {
+    margin: 10px 16px 20px;
+    height: 320px;
+    border-radius: 28px;
+    background: linear-gradient(to bottom, transparent 35%, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0.95) 100%);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding-bottom: 25px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    color: #333; /* 卡片内文字深色 */
+}
+
+/* 卡片背景图 */
+.profile-bg {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 55%;
+    background-image: url('https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=1000&auto=format&fit=crop'); /* 示例：黑色/夜空背景 */
+    background-size: cover;
+    background-position: center;
+    mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+    z-index: 0;
+}
+
+/* 悬浮头像 */
+.profile-avatar-wrap {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    padding: 3px;
+    background: #fff; /* 头像白边 */
+    position: absolute;
+    top: 38%; /* 定位在背景和白底交界处 */
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+.profile-avatar-wrap img {
+    width: 100%; height: 100%; border-radius: 50%; object-fit: cover;
+}
+
+/* 卡片文字信息 */
+.profile-info {
+    z-index: 2;
+    text-align: center;
+    margin-top: 40px; /* 为头像留出空间 */
+    width: 100%;
+}
+.p-name { font-size: 22px; font-weight: 700; color: #000; display: block; margin-bottom: 4px; }
+.p-handle { font-size: 14px; color: #666; font-weight: 400; display: block; margin-bottom: 12px; }
+.p-bio { font-size: 15px; color: #444; margin-bottom: 15px; font-weight: 500; }
+.p-location {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: rgba(0,0,0,0.05); padding: 4px 12px; border-radius: 12px;
+    font-size: 12px; color: #666;
+}
+
+/* === 2. 中部混合布局 (Widgets + Apps) === */
+.dashboard-grid {
+    display: flex;
+    padding: 0 16px;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+/* 左侧：语录小组件列 */
+.widget-column {
+    flex: 1; /* 占一半宽度 */
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.text-widget {
+    flex: 1;
+    background: rgba(60, 60, 60, 0.4); /* 深色半透明 */
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #dedede;
+    border: 0.5px solid rgba(255,255,255,0.1);
+    font-size: 13px;
+    line-height: 1.3;
+}
+.text-widget .t-icon {
+    width: 32px; height: 32px; border-radius: 50%; background: #000; flex-shrink: 0;
+}
+.text-widget span { font-weight: 500; }
+
+/* 右侧：2x2 APP网格 */
+.mini-app-grid {
+    flex: 1; /* 占一半宽度 */
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 15px;
+    justify-items: center;
+}
+
+/* 复用原本的app-item，但图标做小一点适配布局 */
+.mini-app-grid .app-item { gap: 6px; }
+.mini-app-grid .app-icon {
+    width: 54px; height: 54px; font-size: 24px; border-radius: 14px;
+    /* 针对特定APP应用白色背景，模仿截图 */
+}
+.mini-app-grid .app-name { color: #888; font-size: 12px; text-shadow: none; }
+
+/* 针对特定图标的个性化 (模拟截图中的QQ/书/熊) */
+.style-white { background: #fff !important; color: #000; } 
+.style-blue { background: #5a9cf8 !important; color: #fff; }
+
+/* === 3. 底部 Dock === */
+.dock-container {
+    margin-top: auto; /* 推到底部 */
+    padding: 0 16px 20px; /* 底部留白 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.page-dots { display: flex; gap: 6px; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.3); }
+.dot.active { background: #fff; }
+
+.dock {
+    /* 重写 dock 样式以匹配截图的大圆角矩形 */
+    position: relative; bottom: auto; left: auto; right: auto;
+    width: 100%; height: 90px;
+    background: rgba(60, 60, 60, 0.45); /* 只要这一块深色背景 */
+    backdrop-filter: blur(30px);
+    border-radius: 26px;
+    border: 0.5px solid rgba(255,255,255,0.1);
+    display: flex;
+    justify-content: space-around;
+    padding: 0 15px;
+}
+
+.dock .app-item { margin-top: 0; }
+.dock .app-icon {
+    width: 50px; height: 50px; border-radius: 12px;
+    background: #fff; color: #000; /* 默认白色底 */
+}
+.dock .app-name { font-size: 11px; margin-top: 4px; color: #888; }
+.dock .app-icon.style-blue-light { background: #5CAAF8; color: white; }
+
+/* === 隐藏原来的 clock-widget 如果不需要的话 === */
+.clock-widget { display: none; }
+
+/* === 保留窗口和聊天相关样式不变... === */
