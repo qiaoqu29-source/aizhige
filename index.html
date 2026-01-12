@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>AI OS</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="phone-wrapper">
+    <!-- 状态栏 -->
+    <div class="status-bar">
+        <div id="st-time">12:00</div>
+        <div class="status-right">
+            <span>5G</span>
+            <div class="battery"><div class="battery-level"></div></div>
+        </div>
+    </div>
+
+    <!-- 系统通知 -->
+    <div id="noti-banner" class="noti-banner">
+        <div class="noti-icon"><i class="fas fa-comment"></i></div>
+        <div class="noti-content">
+            <div id="noti-n">角色名字</div>
+            <div id="noti-t">消息内容...</div>
+        </div>
+    </div>
+
+    <!-- 桌面 -->
+    <div class="desktop-layer">
+        <div class="profile-card">
+            <div class="profile-avatar">
+                <img src="https://api.dicebear.com/9.x/micah/svg?seed=Moom" alt="">
+            </div>
+            <div class="profile-info">
+                <div class="p-name">Hello,<br>User.</div>
+                <div class="p-handle">Creative Developer</div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="widget-column">
+                <div class="text-widget">
+                    <div class="dot"></div>
+                    <span>Stay<br>Focused</span>
+                </div>
+                <div class="text-widget">
+                    <span>Create<br>Magic</span>
+                    <div class="dot gray"></div>
+                </div>
+            </div>
+
+            <div class="app-grid">
+                <div class="app-item" onclick="openApp('win-chat')">
+                    <i class="fas fa-comment-dots"></i>
+                </div>
+                <div class="app-item">
+                    <i class="fas fa-book"></i>
+                </div>
+                <div class="app-item" onclick="openApp('win-sets')">
+                    <i class="fas fa-cog"></i>
+                </div>
+                <div class="app-item">
+                    <i class="fas fa-pen-nib"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="dock">
+            <div class="dock-item" onclick="openApp('win-sets')">API</div>
+            <div class="dock-item">Aa</div>
+            <div class="dock-item"><i class="fas fa-image"></i></div>
+            <div class="dock-item"><i class="fab fa-chrome"></i></div>
+        </div>
+    </div>
+
+    <!-- 设置窗口 -->
+    <div class="app-window" id="win-sets">
+        <div class="window-nav">
+            <button onclick="closeApp('win-sets')">取消</button>
+            <span>设置</span>
+            <button onclick="saveGlobalSets()">完成</button>
+        </div>
+        <div class="window-content">
+            <div class="setting-group">
+                <div class="setting-row">
+                    <label>API 地址</label>
+                    <input type="text" id="set-url" placeholder="https://...">
+                </div>
+                <div class="setting-row">
+                    <label>API Key</label>
+                    <input type="password" id="set-key" placeholder="sk-...">
+                </div>
+                <div class="setting-row">
+                    <label>模型</label>
+                    <input type="text" id="set-model" placeholder="gpt-4o">
+                </div>
+            </div>
+            <div class="setting-group">
+                <div class="setting-row">
+                    <label>温度</label>
+                    <input type="range" id="set-temp" min="0" max="2" step="0.1">
+                </div>
+                <div class="setting-row">
+                    <label>壁纸 URL</label>
+                    <input type="text" id="set-bg" placeholder="图片链接">
+                </div>
+            </div>
+            <button class="btn-action" onclick="exportData()"><i class="fas fa-download"></i> 备份数据</button>
+            <button class="btn-danger" onclick="localStorage.clear();location.reload();"><i class="fas fa-trash"></i> 清除所有数据</button>
+        </div>
+    </div>
+
+    <!-- 会话列表窗口 -->
+    <div class="app-window" id="win-chat">
+        <div class="window-nav">
+            <button onclick="closeApp('win-chat')">返回</button>
+            <span>消息</span>
+            <button onclick="showCreateModal()">＋</button>
+        </div>
+        <div class="window-content" id="list-con"></div>
+    </div>
+
+    <!-- 聊天详情窗口 -->
+    <div class="chat-window" id="win-room">
+        <div class="window-nav">
+            <button onclick="exitRoom()"><i class="fas fa-chevron-left"></i> 返回</button>
+            <span id="room-n">Name</span>
+            <button onclick="showEditModal()"><i class="fas fa-ellipsis"></i></button>
+        </div>
+        <div class="chat-messages" id="im-scroll">
+            <div id="im-inject"></div>
+        </div>
+        <div class="chat-footer">
+            <div class="chat-input-row">
+                <div class="input-btn" onclick="toggleTools()"><i class="fas fa-plus-circle"></i></div>
+                <div class="input-wrap">
+                    <input type="text" id="chat-inp" placeholder="输入消息..." onkeypress="if(event.key==='Enter')handleSend()">
+                </div>
+                <button class="send-btn" onclick="handleSend()"><i class="fas fa-arrow-up"></i></button>
+            </div>
+            <div class="tools-panel" id="t-panel">
+                <div class="tool-item" onclick="uploadImg()">
+                    <div class="tool-icon"><i class="fas fa-image"></i></div>
+                    <span>相册</span>
+                </div>
+                <div class="tool-item" onclick="uploadFile()">
+                    <div class="tool-icon"><i class="fas fa-file"></i></div>
+                    <span>文件</span>
+                </div>
+                <div class="tool-item" onclick="clearHistory()">
+                    <div class="tool-icon"><i class="fas fa-trash"></i></div>
+                    <span>清空</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 角色配置模态框 -->
+    <div class="modal-overlay" id="mo-overlay" onclick="hideModal()">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <h3 id="mo-title">新角色</h3>
+            
+            <label>名字</label>
+            <input type="text" id="mo-n" placeholder="Name">
+            
+            <label>核心人设 (Prompt)</label>
+            <textarea id="mo-p" placeholder="你是..."></textarea>
+            
+            <div class="memory-section">
+                <label>长期记忆 (Memory)</label>
+                <button class="btn-magic" onclick="summarizeMemory()">🧠 智能提炼</button>
+                <textarea id="mo-mem" class="memory-input" placeholder="重要的回忆..."></textarea>
+            </div>
+
+            <div class="active-section">
+                <div class="active-row">
+                    <span>主动发消息</span>
+                    <input type="checkbox" id="mo-active">
+                </div>
+                <div class="active-row">
+                    <span>间隔(分钟)</span>
+                    <input type="number" id="mo-interval" value="60">
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="hideModal()">取消</button>
+                <button class="btn-confirm" onclick="commitModal()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 消息编辑模态框 -->
+    <div class="modal-overlay" id="edit-overlay" onclick="hideEditOverlay()">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <h3>修改消息</h3>
+            <textarea id="edit-msg-val"></textarea>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="hideEditOverlay()">取消</button>
+                <button class="btn-confirm" id="save-msg-btn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 隐藏的文件输入 -->
+    <input type="file" id="up-i" accept="image/*" style="display:none" onchange="handleImgUpload(this)">
+    <input type="file" id="up-f" accept=".txt,.md" style="display:none" onchange="handleFileUpload(this)">
+    <canvas id="comp-c" style="display:none"></canvas>
+
+    <script src="script.js"></script>
+</div>
+</body>
+</html>
