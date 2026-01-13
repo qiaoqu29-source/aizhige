@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>AI OS Pro</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="phone-wrapper">
+    <!-- 状态栏: 永远在最顶层 -->
+    <div class="status-bar" id="st-bar">
+        <div id="st-time">12:00</div>
+        <div class="status-right">
+            <span>5G</span>
+            <div class="battery"><div class="battery-level"></div></div>
+        </div>
+    </div>
+
+    <!-- 系统级通知 -->
+    <div id="noti-banner" class="noti-banner" onclick="jumpToChat()">
+        <div class="noti-icon"><i class="fas fa-comment"></i></div>
+        <div class="noti-content">
+            <div id="noti-n">角色名字</div>
+            <div id="noti-t">消息内容...</div>
+        </div>
+    </div>
+
+    <!-- 1. 桌面图层 -->
+    <div class="desktop-layer">
+        <!-- Profile: 居中放大 -->
+        <div class="profile-card centered">
+            <div class="profile-avatar large">
+                <img src="https://api.dicebear.com/9.x/micah/svg?seed=Moom" id="desktop-main-avatar">
+            </div>
+            <div class="profile-info">
+                <div class="p-name">Hello, User.</div>
+                <div class="p-handle">Creative Developer</div>
+            </div>
+        </div>
+
+        <!-- 桌面应用/角色网格 -->
+        <div class="dashboard-grid">
+            <div class="widget-column">
+                <div class="text-widget">
+                    <div class="dot"></div>
+                    <span>Stay<br>Focused</span>
+                </div>
+                <div class="text-widget">
+                    <span>Create<br>Magic</span>
+                    <div class="dot gray"></div>
+                </div>
+            </div>
+
+            <!-- 动态渲染：图标+名称 -->
+            <div class="app-grid" id="desktop-app-grid">
+                <!-- 由 script.js 渲染 -->
+            </div>
+        </div>
+
+        <!-- 底部 Dock (固定功能) -->
+        <div class="dock">
+            <div class="dock-item" onclick="openApp('win-sets')"><i class="fas fa-sliders"></i></div>
+            <div class="dock-item" onclick="openApp('win-chat')"><i class="fas fa-message"></i></div>
+            <div class="dock-item"><i class="fas fa-image"></i></div>
+            <div class="dock-item"><i class="fab fa-chrome"></i></div>
+        </div>
+    </div>
+
+    <!-- 2. 全局设置窗口 -->
+    <div class="app-window" id="win-sets">
+        <div class="window-nav">
+            <button onclick="closeApp('win-sets')">取消</button>
+            <span>系统设置</span>
+            <button onclick="saveGlobalSets()" style="font-weight:800">完成</button>
+        </div>
+        <div class="window-content">
+            <div class="setting-group">
+                <div class="setting-row"><label>API 地址</label><input type="text" id="set-url"></div>
+                <div class="setting-row"><label>API Key</label><input type="password" id="set-key"></div>
+                <div class="setting-row">
+                    <label>模型</label>
+                    <div class="model-select-wrap">
+                        <input type="text" id="set-model">
+                        <button class="fetch-btn" onclick="fetchModels()">拉取</button>
+                    </div>
+                </div>
+            </div>
+            <div class="setting-group">
+                <div class="setting-row"><label>壁纸 URL</label><input type="text" id="set-bg" placeholder="输入图片链接"></div>
+                <div class="setting-row"><label>回复温度</label><input type="range" id="set-temp" min="0" max="2" step="0.1"></div>
+            </div>
+            <button class="btn-action" onclick="exportData()"><i class="fas fa-file-export"></i> 备份全部数据</button>
+            <button class="btn-danger" onclick="localStorage.clear();location.reload();"><i class="fas fa-trash"></i> 彻底重置</button>
+        </div>
+    </div>
+
+    <!-- 3. AI 消息列表页 -->
+    <div class="app-window" id="win-chat">
+        <div class="window-nav">
+            <button onclick="closeApp('win-chat')">桌面</button>
+            <span>所有消息</span>
+            <button onclick="showCreateModal()" style="font-size:24px">＋</button>
+        </div>
+        <div class="window-content" id="list-con"></div>
+    </div>
+
+    <!-- 4. 聊天详情设置页 (深度功能区) -->
+    <div class="app-window" id="win-char-settings">
+        <div class="window-nav">
+            <button onclick="closeCharSettings()">关闭</button>
+            <span>聊天详情</span>
+            <button onclick="saveCharSettings()" style="font-weight:800">保存</button>
+        </div>
+        <div class="window-content">
+            <div class="avatar-section">
+                <div class="avatar-item"><div class="avatar-preview" id="ai-avatar-preview" onclick="uploadAvatar('ai')"></div><span>AI头像</span></div>
+                <div class="avatar-item"><div class="avatar-preview" id="user-avatar-preview" onclick="uploadAvatar('user')"></div><span>我的头像</span></div>
+            </div>
+            <div class="setting-group">
+                <div class="setting-row"><label>备注名</label><input type="text" id="char-nickname"></div>
+                <div class="setting-row"><label>角色真名</label><input type="text" id="char-realname"></div>
+                <div class="setting-row"><label>用户昵称</label><input type="text" id="char-username"></div>
+                <div class="setting-row"><label>好友分组</label><input type="text" id="char-group"></div>
+                <div class="setting-row"><label>应用图标 URL</label><input type="text" id="char-icon-url" placeholder="显示在桌面的图标"></div>
+            </div>
+            <div class="setting-group">
+                <div class="setting-row clickable" onclick="openPersonaEditor('ai')"><label>AI Persona</label><i class="fas fa-chevron-right"></i></div>
+                <div class="setting-row clickable" onclick="openPersonaEditor('user')"><label>My Persona</label><i class="fas fa-chevron-right"></i></div>
+                <div class="setting-row clickable" onclick="openMemoryEditor()"><label>长期记忆 (Memory)</label><i class="fas fa-chevron-right"></i></div>
+            </div>
+            <div class="setting-group">
+                <div class="setting-row"><label>主动发消息</label><input type="checkbox" id="char-active"></div>
+                <div class="setting-row"><label>间隔(分钟)</label><input type="number" id="char-interval"></div>
+            </div>
+            <button class="btn-danger" onclick="deleteChar()">删除此关联角色</button>
+        </div>
+    </div>
+
+    <!-- 5. 聊天详情窗口 -->
+    <div class="chat-window" id="win-room">
+        <div class="window-nav">
+            <button onclick="exitRoom()"><i class="fas fa-chevron-left"></i> 返回</button>
+            <span id="room-n">Name</span>
+            <button onclick="openCharSettings()"><i class="fas fa-cog"></i></button>
+        </div>
+        <div class="chat-messages" id="im-scroll">
+            <div id="im-inject"></div>
+        </div>
+        <!-- 工具栏与输入框 -->
+        <div class="chat-footer">
+            <div class="chat-input-row">
+                <div class="input-btn" onclick="toggleTools()"><i class="fas fa-plus-circle"></i></div>
+                <div class="input-wrap"><input type="text" id="chat-inp" placeholder="输入..." onkeypress="if(event.key==='Enter')handleSend()"></div>
+                <button class="send-btn" onclick="handleSend()"><i class="fas fa-arrow-up"></i></button>
+            </div>
+            <div class="tools-panel" id="t-panel">
+                <div class="tool-item" onclick="up('img')"><div class="tool-icon"><i class="fas fa-image"></i></div><span>相册</span></div>
+                <div class="tool-item" onclick="up('file')"><div class="tool-icon"><i class="fas fa-file"></i></div><span>文件</span></div>
+                <div class="tool-item" onclick="clearHistory()"><div class="tool-icon"><i class="fas fa-trash"></i></div><span>清空</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. 其他编辑器窗口 -->
+    <div class="app-window" id="win-persona-editor">
+        <div class="window-nav"><button onclick="closePersonaEditor()">返回</button><span id="persona-title">Persona</span><button onclick="savePersona()">保存</button></div>
+        <div class="window-content">
+            <textarea id="persona-textarea" class="full-textarea"></textarea>
+            <button class="btn-magic-full" onclick="aiGeneratePersona()"><i class="fas fa-wand-magic-sparkles"></i> AI 智能生成</button>
+        </div>
+    </div>
+
+    <!-- 弹窗组件 -->
+    <div class="modal-overlay" id="mo-overlay" onclick="hideModal()">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <h3 id="mo-title">新角色</h3>
+            <label>名称</label><input type="text" id="mo-n">
+            <label>描述</label><textarea id="mo-p"></textarea>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="hideModal()">取消</button>
+                <button class="btn-confirm" onclick="commitModal()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模型列表 -->
+    <div class="modal-overlay" id="model-overlay" onclick="hideModelList()">
+        <div class="modal-box" id="model-list-box" style="max-height:70vh;overflow-y:auto">
+            <h3>选择模型</h3><div id="model-list-inject"></div>
+        </div>
+    </div>
+
+    <!-- 隐藏控件 -->
+    <input type="file" id="up-i" accept="image/*" style="display:none" onchange="dImg(this)">
+    <input type="file" id="up-f" accept=".txt,.md" style="display:none" onchange="dFile(this)">
+    <input type="file" id="up-avatar" style="display:none" onchange="handleAvatarUpload(this)">
+    <canvas id="comp-c" style="display:none"></canvas>
+
+    <script src="script.js"></script>
+</div>
+</body>
+</html>
